@@ -60,6 +60,18 @@ Ganhamos:
   bloqueio pessimista;
 - Redis com o comportamento real de filas e locks.
 
+## Limite explícito desta decisão
+
+A imagem que existe hoje tem um único stage utilizável, `development`, e é a que
+**menos** deve ir para produção: monta todo o projeto em leitura-escrita, incluindo
+`.git` e o `.env` real, e traz `git`, `unzip` e o Composer na camada final.
+
+Declarar o Docker "ambiente canónico" **não** autoriza reutilizar este
+`docker-compose.yml` ou este stage em produção. A imagem de produção — sem bind
+mount, com `COPY` do código, `composer install --no-dev --optimize-autoloader`,
+sem ferramentas de build na camada final — é trabalho do Marco 7 e terá a sua
+própria decisão registada (B-017).
+
 ## Consequência operacional
 
 Qualquer entrada em `docs/progress.md` que reporte testes deve declarar **onde**

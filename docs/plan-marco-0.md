@@ -222,6 +222,13 @@ produção a funcionar.
 - Vite com plugin Vue e TypeScript; `vue-tsc` para type-check.
 - Tailwind CSS configurado mobile-first.
 - ESLint e Prettier.
+- **Node corre em container, não no host.** O host tem Node 26 e a decisão é
+  Node 24; sem um serviço `node` no Compose (ou um stage próprio no Dockerfile),
+  nada impede alguém de correr `npm run dev` no Node do host e reintroduzir a
+  divergência que evitámos para o PHP. A forma concreta fica decidida e registada
+  no ADR-005, escrito neste ciclo.
+- Excluir `node_modules` do bind mount por volume próprio: em macOS, um bind
+  mount único com `node_modules` degrada muito o I/O.
 - Uma página mínima de verificação (shell da aplicação). **Não** é a home da
   secção 11 do `agent.md` — essa pertence ao Marco 1.
 - Locale `pt` configurado. **Sem** helpers de formatação de Kwanza: a unidade
@@ -362,6 +369,13 @@ estão vivas.
   sem versões, hosts ou mensagens de erro.
 - Logging estruturado, com redação das chaves sensíveis listadas na secção 10 do
   `agent.md`.
+- **Exceções de conectividade apanhadas explicitamente.** A fuga mais provável
+  não vem de um corpo de resposta mal desenhado: vem de uma `PDOException` ou
+  `RedisException` a subir sem tratamento e, com `APP_DEBUG=true`, o Laravel
+  devolver a página de erro completa com host, credencial parcial e stack trace.
+  O controlador devolve sempre corpo fixo, sem `getMessage()`.
+- Recusar arranque com `APP_DEBUG=true` fora de `local` e `testing`, coberto por
+  teste.
 
 **Ficheiros.** `routes/web.php`, `app/Http/Controllers/HealthController.php`,
 `config/logging.php`, `tests/Feature/HealthTest.php`.
@@ -390,11 +404,15 @@ algo quebra.
   `npm run lint`, `npm run build`.
 - Cache de dependências Composer e npm.
 - Sem segredos no workflow; nenhum passo de deploy.
+- **A CI constrói e corre dentro da imagem do `Dockerfile`**, com
+  `docker compose build` e `run`. Não instala PHP com uma action genérica.
 
 **Ficheiros.** `.github/workflows/ci.yml`.
 
 **Riscos.**
-- CI com PHP diferente do container → fixar 8.4 em ambos.
+- **Três versões de PHP em vez de duas.** Se a CI instalar PHP à parte, passa a
+  haver host (8.5.6), container (8.4.23) e runner, quando KI-002 e o ADR-007 só
+  preveem e mitigam uma divergência. Daí a CI usar a mesma imagem.
 - Tentação de adicionar deploy → proibido pela secção 16 do `agent.md`.
 
 **Testes.** O próprio pipeline. Enquanto o remoto não estiver configurado, os

@@ -140,6 +140,56 @@ do container define um limite compatível em C0.3.
 
 ---
 
+## KI-009 — `.gitignore` por subpasta do Laravel perdidos no C0.2, com cache de views commitado
+
+**Observado em.** C0.3, 2026-07-28, por revisão independente. Regressão
+introduzida no C0.2.
+
+**Sintoma.** `git ls-files storage/` devolvia quatro ficheiros de cache de views
+Blade compiladas, commitados em `8be80e2`. `find storage -name .gitignore` não
+devolvia nada.
+
+**Causa.** Ao integrar o esqueleto no C0.2, passei `--exclude '.gitignore'` ao
+rsync para proteger o `.gitignore` da raiz escrito no C0.1. Esse padrão não é
+ancorado à raiz: excluiu os doze `.gitignore` que o Laravel coloca dentro de
+`storage/`, `bootstrap/cache` e `database/`, cada um com `*` e `!.gitignore`.
+
+**Impacto.** Duplo, e ambos reais. Artefactos de runtime entravam no histórico a
+cada `git add -A` — hoje inofensivos, mas a partir do Marco 3 `storage/logs/`
+passa a conter traces com payloads de webhook e respostas de gateway. E num clone
+limpo o Git não recriaria as pastas de `storage/`, o que quebraria o critério de
+fecho do C0.10 antes sequer de a aplicação arrancar.
+
+**Correção.** Os doze `.gitignore` foram repostos a partir do esqueleto e os
+quatro ficheiros removidos do índice com `git rm --cached`. Verificado:
+`git ls-files storage/` devolve zero.
+
+**Lição aplicada.** Um padrão de exclusão não ancorado aplica-se a todas as
+profundidades. A verificação a fazer depois de integrar código externo é
+`git ls-files`, não a inspeção visual da raiz.
+
+**Estado.** Resolvido.
+
+---
+
+## KI-010 — Healthcheck do nginx falhava por resolução IPv6
+
+**Observado em.** C0.3, 2026-07-28.
+
+**Sintoma.** O serviço `nginx` ficava `unhealthy` enquanto respondia 200 a partir
+do host. Dentro do container, `wget http://localhost/up` devolvia
+`can't connect to remote host: Connection refused`.
+
+**Causa.** `localhost` resolve primeiro para `::1`, e a diretiva `listen 80` do
+Nginx só abre socket IPv4.
+
+**Correção.** O healthcheck usa `http://127.0.0.1/up`. Verificado: o serviço passa
+a `healthy`.
+
+**Estado.** Resolvido.
+
+---
+
 ## KI-008 — `php artisan test` sai com código 1 mesmo quando os testes passam
 
 **Observado em.** C0.2, 2026-07-28.

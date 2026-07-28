@@ -13,26 +13,44 @@ filme → cinema → data → sessão → assentos → checkout → pagamento �
 
 ## Estado atual
 
-**Marco 0 — Fundação · ciclos C0.1 e C0.2 concluídos.**
+**Marco 0 — Fundação · ciclos C0.1 a C0.3 concluídos.**
 
-Existe uma aplicação Laravel 13 que arranca, com Pest, Pint e PHPStan a passar.
-Ainda **não** existem Docker, base de dados, frontend, autenticação nem CI: são
-os ciclos C0.3 a C0.9.
+Existe uma aplicação Laravel 13 a correr em Docker, ligada a PostgreSQL e Redis,
+com Pest, Pint e PHPStan a passar dentro do container. Ainda **não** existem
+frontend, autenticação nem CI: são os ciclos C0.4 a C0.9.
 
 O que já está feito e o que se segue está em [`docs/progress.md`](docs/progress.md)
 e em [`docs/plan-marco-0.md`](docs/plan-marco-0.md).
 
-As instruções completas de arranque são escritas em C0.10, depois de existir o
-ambiente Docker que elas descrevem. Por agora, a verificação local é:
+### Arranque
 
 ```bash
-composer install
-cp .env.example .env && php artisan key:generate
-composer check   # validate + pint + phpstan + pest
+cp .env.example .env
 ```
 
-`composer check` não toca na base de dados. PostgreSQL e Redis entram em C0.3, e
-a partir daí a verificação que conta é a executada dentro dos containers.
+Depois **define `DB_PASSWORD` e `REDIS_PASSWORD` no `.env`** com valores à tua
+escolha. Não há valores por omissão: nenhuma credencial funcional é versionada, e
+o Compose recusa arrancar sem eles, em vez de cair para uma senha pública.
+
+```bash
+docker compose up -d --build
+docker compose exec app composer install
+docker compose exec app php artisan key:generate
+docker compose exec app php artisan migrate
+```
+
+Aplicação em `http://127.0.0.1:8080`. Verificação:
+
+```bash
+docker compose exec app composer check   # validate + pint + phpstan + pest
+```
+
+O ambiente canónico é o Docker: resultados obtidos no host não valem como
+verificação do comportamento em PostgreSQL ou Redis. Ver
+[`ADR-007`](docs/decisions/ADR-007-docker-ambiente-canonico.md).
+
+`php artisan test` não é usado — sai com código 1 mesmo com os testes a passar
+(KI-008). O comando é `composer test`.
 
 ---
 

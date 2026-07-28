@@ -4,6 +4,101 @@ Registo cronológico dos ciclos executados. Entrada mais recente no topo.
 
 ---
 
+## 2026-07-28 — C0.3 · Docker Compose com PHP-FPM, Nginx, PostgreSQL e Redis
+
+**Marco.** 0 — Fundação.
+
+**Tarefa.** Tornar o Docker o ambiente canónico: aplicação a correr, ligada a
+PostgreSQL e Redis, com migrations e testes a executar dentro dos containers.
+
+**Resultado.** Concluído. Todos os critérios de fecho verificados por execução,
+depois de aplicadas as correções de duas revisões independentes.
+
+**Implementado.**
+- `Dockerfile` com stages `base` e `development` sobre `php:8.4.23-fpm-bookworm`,
+  tag de patch fixa para não divergir do `platform.php` do `composer.json`.
+- Sete extensões, com **asserção dentro do próprio build**: se faltar uma, a
+  imagem não é construída. `pcntl` e `posix` incluídas agora, embora só sejam
+  exigidas pelo Horizon no C0.7.
+- `docker-compose.yml` com `app`, `nginx`, `postgres` e `redis`, healthchecks
+  significativos e `depends_on` com `condition: service_healthy`.
+- Healthcheck da `app` interroga o pool do PHP-FPM por `ping.path`, via
+  `cgi-fcgi`; verifica que o pool responde, não que o processo existe.
+- Portas publicadas apenas em `127.0.0.1`. Utilizador não-root no container.
+- Script de init que cria `bilhete_testing`, a base que o `phpunit.xml` já exigia.
+- `SESSION_DRIVER=database` sobre PostgreSQL, conforme decidido no plano.
+
+**Ficheiros principais.**
+
+```text
+Dockerfile · docker-compose.yml · .dockerignore
+docker/nginx/default.conf · docker/php/php.ini · docker/php/www.conf
+docker/postgres/initdb/01-create-testing-database.sh
+.env.example · .gitignore + 12 .gitignore repostos em storage/, bootstrap/, database/
+```
+
+**Testes e verificações — executados dentro dos containers.**
+
+| Verificação | Resultado |
+| --- | --- |
+| `docker compose config` | saída 0 |
+| `docker compose build` | imagem construída; asserção das 7 extensões passou |
+| `docker compose up -d` + `ps` | `app`, `nginx`, `postgres`, `redis` todos `healthy` |
+| `php -v` no container | PHP **8.4.23**, igual ao `platform.php` do `composer.json` |
+| `php -m` | `bcmath intl pcntl pdo_pgsql posix redis zip` |
+| `php artisan migrate --force` | 3 migrations aplicadas em PostgreSQL |
+| bases de dados | `bilhete` e `bilhete_testing` — script de init verificado em volume novo |
+| `composer test` no container | 3 testes, 3 asserções, saída 0 |
+| Redis via facade | escrita e leitura com password ativa |
+| `GET /` e `GET /up` | 200 |
+| `GET /qualquer.php` | 404 — só o front controller é executado |
+| Cabeçalhos | `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `CSP` presentes; `X-Powered-By` ausente; `Server: nginx` sem versão |
+| `docker compose config` sem `DB_PASSWORD` | falha com mensagem explícita, como desenhado |
+
+O volume do PostgreSQL foi destruído e recriado de propósito, para que o script
+de init fosse verificado a sério e não apenas escrito. Continha as três migrations
+de esqueleto criadas minutos antes, sem dados reais.
+
+**Revisão independente.** Dois revisores, ambos sem terem escrito o código:
+infraestrutura e segurança. Ambos aprovaram com correções, sem bloqueadores.
+Os dois encontraram, de forma independente, o mesmo problema mais grave.
+
+| Achado | Correção aplicada |
+| --- | --- |
+| Cache de views Blade commitado e os 12 `.gitignore` do Laravel em falta (KI-009) | Repostos; ficheiros removidos do índice; `git ls-files storage/` devolve zero |
+| `bilhete_testing` nunca era criada, apesar de o `phpunit.xml` já a exigir | Script de init, verificado em volume novo |
+| Tag `php:8.4-fpm-bookworm` flutuante contra `platform.php` fixo | Fixada em `php:8.4.23-fpm-bookworm` |
+| `POSTGRES_PASSWORD` com fallback funcional em ficheiro versionado | `${DB_PASSWORD:?...}`: falha alto em vez de arrancar com senha pública |
+| Redis sem password, prestes a entrar no caminho de locks e pagamentos | `requirepass` obrigatório, healthcheck autenticado |
+| Qualquer `.php` sob a document root era executável | Só `index.php`; o resto devolve 404 |
+| Sem cabeçalhos de segurança no Nginx | `nosniff`, `DENY`, `Referrer-Policy`, CSP |
+| CI arriscava uma terceira versão de PHP | Plano do C0.9: a CI constrói e corre a mesma imagem |
+| Node do host reintroduziria a divergência que evitámos no PHP | Plano do C0.4: Node em container, decidido no ADR-005 |
+| Imagem de desenvolvimento podia ser reutilizada em produção | Limite explícito escrito no ADR-007; B-017 para o Marco 7 |
+| Fuga por exceção não apanhada no health check com `APP_DEBUG=true` | Plano do C0.8 reforçado |
+
+**Verificação independente dos achados.** Confirmei por execução antes de aplicar:
+`git ls-files storage/` devolvia mesmo os quatro ficheiros; `find storage -name
+.gitignore` não devolvia nada; `bilhete_testing` não existia; a tag
+`php:8.4.23-fpm-bookworm` existe no Docker Hub. Todos procediam.
+
+**Problema encontrado por mim durante a execução.** O healthcheck do `nginx`
+ficava `unhealthy` enquanto o serviço respondia 200 ao host: dentro do container
+`localhost` resolve para `::1` e o Nginx só escuta em IPv4 (KI-010).
+
+**Riscos restantes.**
+- A imagem só serve desenvolvimento. Não há stage de produção, e o ADR-007 agora
+  diz isso explicitamente (B-017).
+- `.dockerignore` ainda não é exercitado por build nenhum: o stage
+  `development` não copia código, depende do bind mount.
+- CORS por decidir antes de existir qualquer rota `api/*` (B-018).
+- Nada foi testado em Linux; o ambiente declarado é macOS.
+
+**Próxima tarefa recomendada.** C0.4 — Vite, Vue 3, TypeScript, Tailwind e
+Inertia, com Node em container e o ADR-005 escrito no mesmo ciclo.
+
+---
+
 ## 2026-07-28 — C0.2 · Esqueleto Laravel 13 e baseline de qualidade
 
 **Marco.** 0 — Fundação.

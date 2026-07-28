@@ -1,0 +1,103 @@
+name: bilhete-ao
+
+services:
+  app:
+    build:
+      context: .
+      target: development
+      args:
+        UID: ${UID:-1000}
+        GID: ${GID:-1000}
+    volumes:
+      - .:/var/www/html
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      # A aplicação lê o resto de .env. Estes valores garantem que os serviços
+      # são alcançados pelo nome do serviço, mesmo que .env divirja.
+      DB_HOST: postgres
+      REDIS_HOST: redis
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      # cgi-fcgi interroga o próprio php-fpm pelo endpoint ping.path definido em
+      # docker/php/www.conf. Verifica que o pool responde, não apenas que o
+      # processo existe.
+      test: ["CMD-SHELL", "SCRIPT_NAME=/ping SCRIPT_FILENAME=/ping REQUEST_METHOD=GET cgi-fcgi -bind -connect 127.0.0.1:9000 | grep -q pong"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  nginx:
+    image: nginx:1.29-alpine
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      # 127.0.0.1 explícito: o serviço não fica exposto na rede local.
+      - "127.0.0.1:8080:80"
+    volumes:
+      - .:/var/www/html:ro
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      app:
+        condition: service_healthy
+    healthcheck:
+      # 127.0.0.1 e não localhost: dentro do container, localhost resolve
+      # primeiro para ::1 e o nginx escuta apenas em IPv4, o que fazia o
+      # healthcheck falhar com "connection refused" enquanto o serviço respondia.
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1/up || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${DB_DATABASE:-bilhete}
+      POSTGRES_USER: ${DB_USERNAME:-bilhete}
+      # Sem valor por omissão, de propósito: um fallback funcional aqui seria uma
+      # credencial versionada, e seria herdada por qualquer ambiente que copiasse
+      # este ficheiro. Falha alto e cedo em vez de arrancar com senha pública.
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?defina DB_PASSWORD no .env}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./docker/postgres/initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-bilhete} -d ${DB_DATABASE:-bilhete}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  redis:
+    image: redis:8-alpine
+    # appendonly garante que as filas sobrevivem a um reinício do container.
+    # requirepass mesmo em desenvolvimento: a partir do Marco 2 o Redis entra no
+    # caminho de locks e filas de pagamento, e "sem password" não pode ser o
+    # estado normal que alguém copia para outro ambiente.
+    command: ["sh", "-c", "exec redis-server --appendonly yes --requirepass \"$$REDIS_PASSWORD\""]
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?defina REDIS_PASSWORD no .env}
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      # Autenticado: sem -a o redis-cli responde NOAUTH e o healthcheck passaria
+      # a medir a ausência de password em vez da saúde do serviço.
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" --no-auth-warning ping | grep -q PONG"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+volumes:
+  postgres-data:
+  redis-data:

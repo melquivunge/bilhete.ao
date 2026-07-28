@@ -13,7 +13,7 @@ Prioridade: **P1** bloqueia o marco atual · **P2** necessário no marco seguint
 | ID | Prioridade | Item | Ciclo |
 | --- | --- | --- | --- |
 | ~~B-001~~ | — | ~~Esqueleto Laravel 13 e baseline de qualidade (Pint, PHPStan, Pest)~~ — concluído em C0.2 | C0.2 |
-| B-002 | P1 | Docker Compose com PHP-FPM 8.4, Nginx, PostgreSQL 17 e Redis 8 | C0.3 |
+| ~~B-002~~ | — | ~~Docker Compose com PHP-FPM 8.4, Nginx, PostgreSQL 17 e Redis 8~~ — concluído em C0.3 | C0.3 |
 | B-003 | P1 | Frontend Inertia, Vue 3, TypeScript, Tailwind e Vite | C0.4 |
 | B-004 | P1 | Autenticação de clientes com Fortify e páginas Inertia próprias | C0.5 |
 | B-005 | P1 | Painel Filament em `/admin` com acesso negado por omissão | C0.6 |
@@ -27,7 +27,10 @@ Prioridade: **P1** bloqueia o marco atual · **P2** necessário no marco seguint
 | B-016 | P2 | Substituir `resources/views/welcome.blade.php`, ainda a página por omissão do Laravel | C0.4 |
 | B-012 | P2 | Redação de dados sensíveis nos logs, conforme secção 10 do `agent.md` | C0.8 |
 | B-013 | P1 | ADR-005 — Inertia e Vue no frontend, escrito no ciclo que o implementa | C0.4 |
-| B-014 | P2 | Confirmar as tags exatas das imagens `php` e `node` no momento do build | C0.3 |
+| ~~B-014~~ | — | ~~Confirmar as tags exatas das imagens `php` e `node`~~ — `php:8.4.23-fpm-bookworm` fixado em C0.3; tag do Node fica com o serviço Node, em C0.4 | C0.3 |
+| B-017 | P2 | Stage de produção no `Dockerfile` e decisão própria: sem bind mount, sem dependências de dev, sem ferramentas de build na camada final | Marco 7 |
+| B-018 | P2 | `config/cors.php` explícito com origens restritas, antes de existir qualquer rota `api/*` | Marco 3 |
+| B-019 | P3 | Propor "CORS" como item da lista da secção 10 do `agent.md`, onde hoje não consta | Marco 3 |
 
 ---
 
