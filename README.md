@@ -13,11 +13,11 @@ filme → cinema → data → sessão → assentos → checkout → pagamento �
 
 ## Estado atual
 
-**Marco 0 — Fundação · ciclos C0.1 a C0.3 concluídos.**
+**Marco 0 — Fundação · ciclos C0.1 a C0.4 concluídos.**
 
 Existe uma aplicação Laravel 13 a correr em Docker, ligada a PostgreSQL e Redis,
-com Pest, Pint e PHPStan a passar dentro do container. Ainda **não** existem
-frontend, autenticação nem CI: são os ciclos C0.4 a C0.9.
+a servir uma página Inertia com Vue 3 e TypeScript. Ainda **não** existem
+autenticação, painel administrativo nem CI: são os ciclos C0.5 a C0.9.
 
 O que já está feito e o que se segue está em [`docs/progress.md`](docs/progress.md)
 e em [`docs/plan-marco-0.md`](docs/plan-marco-0.md).
@@ -42,8 +42,12 @@ docker compose exec app php artisan migrate
 Aplicação em `http://127.0.0.1:8080`. Verificação:
 
 ```bash
-docker compose exec app composer check   # validate + pint + phpstan + pest
+docker compose exec app composer check              # validate + pint + phpstan + pest
+docker compose run --rm node npm run type-check     # e ainda: lint, format:check, build
 ```
+
+O Node corre no container (Node 24 LTS), não no host. `node_modules` vive num
+volume próprio e por isso não aparece na tua árvore de ficheiros.
 
 O ambiente canónico é o Docker: resultados obtidos no host não valem como
 verificação do comportamento em PostgreSQL ou Redis. Ver

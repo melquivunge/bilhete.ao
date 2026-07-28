@@ -4,6 +4,118 @@ Registo cronológico dos ciclos executados. Entrada mais recente no topo.
 
 ---
 
+## 2026-07-28 — C0.4 · Frontend com Vite, Vue 3, TypeScript, Tailwind e Inertia
+
+**Marco.** 0 — Fundação.
+
+**Tarefa.** Servir uma página Inertia com Vue 3 e TypeScript, com build de
+produção a funcionar e Node a correr em container.
+
+**Resultado.** Concluído. Toda a cadeia frontend e a suíte PHP passam, dentro dos
+containers.
+
+**Implementado.**
+- Serviço `node` no Compose sobre `node:24-alpine`, com `node_modules` em volume
+  próprio para não atravessar o bind mount, que em macOS degrada muito o I/O.
+- `inertiajs/inertia-laravel` 3.2, middleware `HandleInertiaRequests` registado
+  no `bootstrap/app.php`, template de raiz `resources/views/app.blade.php`.
+- `resources/js/app.ts` com resolução de páginas por `import.meta.glob`, que
+  falha alto e com o nome do componente quando a página não existe.
+- Página `Inicio.vue`, escrita de raiz, mobile-first. **Não** é a home da secção
+  11 do `agent.md`, que depende do catálogo e pertence ao Marco 1.
+- `vite.config.ts`, `tsconfig.json` em modo estrito, ESLint 10 em flat config,
+  Prettier, e `eslint-config-prettier` a arbitrar entre os dois.
+- `welcome.blade.php` e `resources/js/app.js` removidos (B-016).
+- Plugin de fontes do esqueleto removido: descarregava 'Instrument Sans' durante
+  o build, uma dependência de rede evitável na CI. Pilha de fontes do sistema até
+  a identidade tipográfica ser trabalho do Marco 1.
+
+**Ficheiros principais.**
+
+```text
+docker-compose.yml (serviço node) · package.json · vite.config.ts · tsconfig.json
+eslint.config.js · .prettierrc.json
+resources/js/app.ts · resources/js/env.d.ts · resources/js/Pages/Inicio.vue
+resources/views/app.blade.php · resources/css/app.css
+app/Http/Middleware/HandleInertiaRequests.php · bootstrap/app.php · routes/web.php
+tests/Feature/InertiaShellTest.php
+docs/decisions/ADR-005-inertia-e-vue-no-frontend.md
+```
+
+**Testes e verificações — executados dentro dos containers.**
+
+| Comando | Resultado |
+| --- | --- |
+| `npm run build` | assets gerados, saída 0 |
+| `npm run type-check` | saída 0 |
+| `npm run lint` | saída 0, com `--max-warnings=0` |
+| `npm run format:check` | saída 0 |
+| `composer check` | saída 0 |
+| `composer test` | **10 testes, 45 asserções**, saída 0 |
+| browser real (Playwright) | **0 erros de consola, 0 page errors** |
+| `GET /` | 200, com `component":"Inicio"` no payload Inertia |
+| assets servidos | `/build/assets/app-*.js` e `.css` referenciados no HTML |
+
+Os três testes novos verificam que a raiz devolve uma resposta Inertia com o
+componente esperado, que o locale é partilhado, e que **nenhum dado de
+utilizador é partilhado por omissão** numa página pública — este último existe
+porque tudo o que entrar em `share()` viaja em todas as respostas Inertia,
+inclusive as anónimas.
+
+**Problemas encontrados durante a execução.**
+
+1. **TypeScript 7 quebra o `vue-tsc`** (KI-011). A 7 é a versão estável atual e o
+   `vue-tsc` declara aceitar `>=5.0.0`, mas carrega `typescript/lib/tsc`, caminho
+   que a 7 deixou de exportar. Fixei em `^5.9.3`. Tinha dito que tentaria a 7 e
+   recuaria se partisse; foi o que aconteceu, e a razão está no ADR-005.
+2. `@eslint/js` estava fixado por mim em `^10.8.0`, versão que não existe — a
+   última é a 10.0.1. Copiei o número da versão do ESLint, que é outro pacote.
+3. O ESLint acusava 16 avisos de indentação e quebras de linha, todos por
+   competir com o Prettier. Resolvido por separação de papéis, com
+   `eslint-config-prettier` aplicado por último — e não desligando regras à mão.
+4. O CSS do esqueleto referenciava 'Instrument Sans' depois de eu remover o
+   plugin que a carregava: teria ficado uma referência a uma fonte inexistente.
+
+**Revisão independente.** Um revisor de frontend, que não escreveu o código.
+Veredicto: aprovado com correções, com **um bloqueador**.
+
+| Achado | Correção aplicada |
+| --- | --- |
+| **Bloqueador:** CSP estático do Nginx bloqueava os `<style>` que o Inertia injeta em runtime; erro de consola em todas as visitas (KI-012) | CSP passou para middleware Laravel com nonce por pedido, e o nonce é passado ao `createInertiaApp`. Sem `unsafe-inline` |
+| `import.meta.glob` com `eager: true` metia todas as páginas no bundle de entrada | `eager` removido; o build passou a gerar `Inicio-*.js` como chunk próprio |
+| Alias `@/*` no tsconfig sem correspondência no Vite — falharia no primeiro uso | `resolve.alias` no `vite.config.ts` |
+| `npm run lint` cobria menos ficheiros que o `type-check` | `eslint .`, com os `ignores` já definidos na flat config |
+| O critério de fecho não previa verificação em browser | Passou a exigir zero erros de consola, em todos os ciclos de frontend |
+| Referência tripla-slash em `env.d.ts` duplicava o `types` do tsconfig | Removida |
+
+**Verificação independente dos achados.** Reproduzi o bloqueador com Playwright
+antes de lhe tocar: 1 erro de consola, exatamente como descrito. Fui além do
+relatado em dois pontos, ambos apurados por leitura do código instalado:
+o `@inertiajs/core` **não** lê a meta tag — exige a opção `nonce` em
+`createInertiaApp`; e enquanto Nginx e Laravel enviavam ambos um CSP, o browser
+aplicava a interseção e o mais restritivo continuava a bloquear.
+
+**Regressões que eu próprio introduzi ao corrigir, e apanhei na reverificação.**
+`node:url` no `vite.config.ts` sem `@types/node` instalado, o que partiu o
+`type-check`; e um PHPDoc `@return string` redundante que o Pint recusou. Os
+`@types/node` ficaram na linha 24, a condizer com o Node do container — os tipos
+devem seguir o runtime, não a versão mais recente.
+
+**Riscos restantes.**
+- A verificação em browser é hoje manual; automatizá-la na CI é B-021.
+- Coexistência Vite/Livewire ainda por validar; acontece em C0.6 (KI-004).
+- `node_modules` não existe no host: editores configurados para o resolver
+  localmente não terão tipos nem autocompletar.
+- O servidor de desenvolvimento do Vite está configurado mas não foi exercitado;
+  o caminho verificado é o do build.
+- Preso ao TypeScript 5 até o `vue-tsc` suportar a 7 (B-020).
+
+**Próxima tarefa recomendada.** C0.5 — autenticação de clientes com Fortify e
+páginas Inertia próprias, incluindo os testes de rate limiting e de mass
+assignment que fecham o ciclo.
+
+---
+
 ## 2026-07-28 — C0.3 · Docker Compose com PHP-FPM, Nginx, PostgreSQL e Redis
 
 **Marco.** 0 — Fundação.

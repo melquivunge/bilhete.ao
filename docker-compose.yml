@@ -55,6 +55,24 @@ services:
       retries: 5
       start_period: 15s
 
+  # Node corre em container, e não no host. O host tem Node 26 (canal Current) e
+  # a decisão é Node 24 (LTS Krypton), pela mesma razão que levou a PHP 8.4 em
+  # vez de 8.5. Ver ADR-005.
+  node:
+    image: node:24-alpine
+    working_dir: /var/www/html
+    volumes:
+      - .:/var/www/html
+      # Volume próprio: node_modules não atravessa o bind mount, que em macOS
+      # degrada muito o I/O com milhares de ficheiros pequenos.
+      - node-modules:/var/www/html/node_modules
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - "127.0.0.1:5173:5173"
+    # Instala dependências se ainda não existirem, e só então arranca o Vite.
+    command: ["sh", "-c", "[ -d node_modules/.bin ] || npm ci; exec npm run dev"]
+
   postgres:
     image: postgres:17-alpine
     environment:
@@ -101,3 +119,4 @@ services:
 volumes:
   postgres-data:
   redis-data:
+  node-modules:

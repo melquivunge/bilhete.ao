@@ -140,6 +140,78 @@ do container define um limite compatível em C0.3.
 
 ---
 
+## KI-012 — CSP estático bloqueava os estilos injetados pelo Inertia
+
+**Observado em.** C0.4, 2026-07-28, por revisão independente e reproduzido por
+mim num browser real.
+
+**Sintoma.** A página renderizava e todas as verificações passavam, mas a consola
+do browser registava, em todas as visitas:
+
+```text
+Applying inline style violates the following Content Security Policy
+directive 'default-src 'self''
+```
+
+**Causa.** O CSP era um `add_header` estático do Nginx. A barra de progresso do
+Inertia cria um `<style>` em runtime, e o Vite em modo de desenvolvimento faz o
+mesmo. Sem nonce, `default-src 'self'` bloqueia-os. O Nginx não consegue gerar um
+nonce por pedido.
+
+Duas descobertas durante a correção, ambas por leitura do código instalado e não
+por suposição:
+
+1. Pôr `<meta name="csp-nonce">` no HTML **não basta**. O `@inertiajs/core` lê o
+   nonce de `config.get('nonce')`, alimentado pela opção `nonce` de
+   `createInertiaApp`. É preciso passar-lho explicitamente.
+2. Enquanto o Nginx e o Laravel enviavam ambos um cabeçalho CSP, o browser
+   aplicava a interseção dos dois, e o mais restritivo continuava a bloquear.
+
+**Correção.** CSP emitido por `app/Http/Middleware/ContentSecurityPolicy.php`,
+com nonce por pedido via `Vite::useCspNonce()`, e o nonce passado ao
+`createInertiaApp`. `unsafe-inline` **não** foi usado: resolveria o sintoma
+desativando a proteção que o CSP existe para dar. Os cabeçalhos que não dependem
+do pedido continuam no Nginx.
+
+**Verificação.** Zero erros de consola em browser real, e quatro testes em
+`tests/Feature/ContentSecurityPolicyTest.php`, incluindo um que compara o nonce
+do cabeçalho com o publicado no HTML.
+
+**Lição aplicada.** O critério de fecho dos ciclos de frontend passou a exigir
+carregar a página num browser e não tolerar erros de consola. `build`,
+`type-check`, `lint` e a suíte Pest passaram todos com este defeito presente.
+
+**Estado.** Resolvido.
+
+---
+
+## KI-011 — `vue-tsc` incompatível com TypeScript 7
+
+**Observado em.** C0.4, 2026-07-28.
+
+**Sintoma.** Com `typescript@7.0.2`, o `npm run type-check` falha antes de
+verificar seja o que for:
+
+```text
+Error [ERR_PACKAGE_PATH_NOT_EXPORTED]: Package subpath './lib/tsc' is not
+defined by "exports" in node_modules/typescript/package.json
+```
+
+**Causa.** O `vue-tsc` 3.3.8 declara `peerDependencies: { typescript: '>=5.0.0' }`,
+o que sugere compatibilidade com a 7. Na prática carrega `typescript/lib/tsc`,
+caminho que a linha 7 deixou de exportar. A declaração de peer está otimista.
+
+**Impacto.** Nenhuma verificação de tipos seria possível. Descoberto por execução;
+se o `type-check` não fizesse parte do critério de fecho do ciclo, teria passado
+despercebido até alguém confiar em tipos que nunca foram verificados.
+
+**Contorno.** `typescript` fixado em `^5.9.3`, a última estável da linha 5.
+Registado em ADR-005 e no backlog como B-020.
+
+**Estado.** Aberto a montante, contornado.
+
+---
+
 ## KI-009 — `.gitignore` por subpasta do Laravel perdidos no C0.2, com cache de views commitado
 
 **Observado em.** C0.3, 2026-07-28, por revisão independente. Regressão

@@ -14,7 +14,12 @@ Prioridade: **P1** bloqueia o marco atual · **P2** necessário no marco seguint
 | --- | --- | --- | --- |
 | ~~B-001~~ | — | ~~Esqueleto Laravel 13 e baseline de qualidade (Pint, PHPStan, Pest)~~ — concluído em C0.2 | C0.2 |
 | ~~B-002~~ | — | ~~Docker Compose com PHP-FPM 8.4, Nginx, PostgreSQL 17 e Redis 8~~ — concluído em C0.3 | C0.3 |
-| B-003 | P1 | Frontend Inertia, Vue 3, TypeScript, Tailwind e Vite | C0.4 |
+| ~~B-003~~ | — | ~~Frontend Inertia, Vue 3, TypeScript, Tailwind e Vite~~ — concluído em C0.4 | C0.4 |
+| B-020 | P3 | Subir o TypeScript para a linha 7 quando o `vue-tsc` a suportar (KI-011) | após C0.4 |
+| B-021 | P2 | Automatizar a verificação em browser (zero erros de consola) na CI, hoje feita manualmente | C0.9 |
+| B-022 | P3 | Skip-link e landmarks de navegação, quando existir cabeçalho real | Marco 1 |
+| B-027 | P2 | Retirar a prop `ambiente` da rota raiz ao substituir o shell pela home real | Marco 1 |
+| B-028 | P3 | `healthcheck` no serviço `node`, por consistência com os outros quatro | C0.9 |
 | B-004 | P1 | Autenticação de clientes com Fortify e páginas Inertia próprias | C0.5 |
 | B-005 | P1 | Painel Filament em `/admin` com acesso negado por omissão | C0.6 |
 | B-006 | P1 | Redis, filas, Horizon com gate e scheduler | C0.7 |
@@ -24,7 +29,7 @@ Prioridade: **P1** bloqueia o marco atual · **P2** necessário no marco seguint
 | B-010 | P2 | Configurar o remoto `git@github.com:melquivunge/bilhete.ao.git` e a branch `main` | antes de C0.9 |
 | B-011 | P2 | Subir o nível do PHPStan por passos, em ciclo próprio | após C0.2 |
 | B-015 | P2 | Reativar `checkModelProperties` do Larastan com modelos e migrations reais (KI-006) | Marco 1 |
-| B-016 | P2 | Substituir `resources/views/welcome.blade.php`, ainda a página por omissão do Laravel | C0.4 |
+| ~~B-016~~ | — | ~~Substituir `resources/views/welcome.blade.php`~~ — removido em C0.4; a raiz é agora uma página Inertia | C0.4 |
 | B-012 | P2 | Redação de dados sensíveis nos logs, conforme secção 10 do `agent.md` | C0.8 |
 | B-013 | P1 | ADR-005 — Inertia e Vue no frontend, escrito no ciclo que o implementa | C0.4 |
 | ~~B-014~~ | — | ~~Confirmar as tags exatas das imagens `php` e `node`~~ — `php:8.4.23-fpm-bookworm` fixado em C0.3; tag do Node fica com o serviço Node, em C0.4 | C0.3 |

@@ -246,12 +246,18 @@ produção a funcionar.
   manter os pipelines separados e validar em C0.6.
 - Node 26 muito recente para algum plugin Vite → fixar versões e registar.
 
-**Testes.** `npm ci`, `npm run type-check`, `npm run lint`, `npm run build`, e um
-teste de feature que assere que a rota devolve uma resposta Inertia com o
-componente esperado.
+**Testes.** `npm ci`, `npm run type-check`, `npm run lint`, `npm run format:check`,
+`npm run build`, e testes de feature que asserem a resposta Inertia e o
+Content-Security-Policy.
 
-**Critério de conclusão.** Build de produção gerado e teste de resposta Inertia a
-passar dentro do container.
+**Verificação em browser, obrigatória a partir deste ciclo.** Carregar a página
+num browser real e exigir **zero erros de consola**. Nenhuma verificação estática
+ou de servidor apanha um CSP a bloquear estilos injetados em runtime — foi assim
+que esse defeito passou por `build`, `type-check`, `lint` e pela suíte Pest neste
+mesmo ciclo. Aplica-se a todos os ciclos que toquem no frontend.
+
+**Critério de conclusão.** Build de produção gerado, testes a passar dentro do
+container, e a página a carregar sem erros de consola.
 
 ---
 
