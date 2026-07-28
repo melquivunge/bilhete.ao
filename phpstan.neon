@@ -1,0 +1,23 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+    - vendor/pestphp/pest/phpstan-pest-extension.neon
+
+parameters:
+    paths:
+        - app
+        - database
+        - routes
+        - tests
+
+    # Nível inicial. Subir por passos, em ciclo próprio (B-011), e não de uma vez:
+    # cada subida deve fechar com a análise a passar, nunca com erros ignorados.
+    level: 6
+
+    # Desligado enquanto o único modelo é o User do esqueleto e não há migrations
+    # aplicadas: nesta combinação Larastan 3 / PHPStan 2, a sintaxe
+    # "array<model property of ..., mixed>" que a verificação exige é rejeitada
+    # pelo parser de PHPDoc. Reativar no Marco 1, com modelos e migrations reais
+    # (B-015). Ver KI-006.
+    checkModelProperties: false
+
+    checkOctaneCompatibility: false

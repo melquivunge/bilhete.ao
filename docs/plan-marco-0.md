@@ -158,7 +158,11 @@ qualidade a correr desde o primeiro commit de código.
   que for claramente morto, sem refatorações não relacionadas.
 
 **Testes.** `composer validate`, `./vendor/bin/pint --test`,
-`./vendor/bin/phpstan analyse`, `php artisan test`.
+`./vendor/bin/phpstan analyse`, `composer test`.
+
+Nota: `php artisan test` não é usado em ciclo nenhum — sai com código 1 mesmo com
+os testes a passar (KI-008). O comando canónico é `composer test`, e `composer
+check` encadeia as quatro verificações.
 
 **Critério de conclusão.** Os quatro comandos passam no host; aplicação arranca
 sem base de dados configurada.
@@ -200,7 +204,7 @@ PostgreSQL e ao Redis e executa migrations dentro dos containers.
 `docker compose exec app php -m` (confirmar `pdo_pgsql`, `redis`, `intl`,
 `pcntl`, `posix`, `bcmath`, `zip`),
 `docker compose exec app php artisan migrate` contra PostgreSQL,
-`docker compose exec app php artisan test`.
+`docker compose exec app composer test`.
 
 **Critério de conclusão.** As sete extensões presentes em `php -m`, migrations de
 raiz aplicadas em PostgreSQL dentro do container e suíte de testes verde dentro do
@@ -382,7 +386,7 @@ algo quebra.
 **Trabalho.**
 - Workflow com serviços PostgreSQL e Redis.
 - Passos: `composer validate`, `composer install`, `pint --test`,
-  `phpstan analyse`, `php artisan test`, `npm ci`, `npm run type-check`,
+  `phpstan analyse`, `composer test`, `npm ci`, `npm run type-check`,
   `npm run lint`, `npm run build`.
 - Cache de dependências Composer e npm.
 - Sem segredos no workflow; nenhum passo de deploy.

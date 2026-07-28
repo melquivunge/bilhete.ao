@@ -94,3 +94,80 @@ um fluxo a afetar o outro.
 simultâneo, incluindo o destino do redirecionamento de cada um.
 
 **Estado.** Por confirmar.
+
+---
+
+## KI-006 — `checkModelProperties` do Larastan desligado
+
+**Observado em.** C0.2, 2026-07-28.
+
+**Sintoma.** Com `checkModelProperties: true`, o Larastan exige que
+`UserFactory::definition()` declare `@return array<model property of \App\Models\User, mixed>`.
+Ao usar essa sintaxe, o PHPStan responde
+`PHPDoc tag @return has invalid value: Unexpected token "property", expected '>'`.
+Nesta combinação Larastan 3.10 / PHPStan 2, o parser de PHPDoc não aceita o tipo
+que a própria verificação exige.
+
+**Impacto.** As propriedades de modelos não são verificadas estaticamente. Hoje o
+impacto é nulo — o único modelo é o `User` do esqueleto e não há migrations
+aplicadas. A partir do Marco 1, com modelos reais, passa a ser uma lacuna real.
+
+**Contorno.** `checkModelProperties: false` no `phpstan.neon`, com a justificação
+escrita no próprio ficheiro. Não foram usados `@phpstan-ignore` nem baseline.
+
+**Resolução.** B-015: reativar no Marco 1, quando existirem modelos e migrations
+reais, reavaliando a sintaxe com as versões então instaladas.
+
+**Estado.** Aberto, contornado.
+
+---
+
+## KI-007 — PHPStan excede o limite de memória por omissão do PHP
+
+**Observado em.** C0.2, 2026-07-28.
+
+**Sintoma.** `phpstan analyse` termina com
+`Allowed memory size of 134217728 bytes exhausted`, com o `memory_limit=128M` do
+`php.ini` do host.
+
+**Impacto.** Sem limite explícito, a análise falha ou passa consoante a máquina,
+o que torna a verificação não reprodutível.
+
+**Contorno.** `--memory-limit=1G` fixado no script `composer analyse`. O `php.ini`
+do container define um limite compatível em C0.3.
+
+**Estado.** Resolvido por configuração.
+
+---
+
+## KI-008 — `php artisan test` sai com código 1 mesmo quando os testes passam
+
+**Observado em.** C0.2, 2026-07-28.
+
+**Sintoma.** `php artisan test` imprime
+`{"tool":"pest","result":"passed","tests":3,"passed":3,...}` e termina com código
+de saída 1. `./vendor/bin/pest` termina com 0 sobre exatamente os mesmos testes.
+
+**Causa.** O comando `test` é fornecido pelo `nunomaduro/collision`, que invoca o
+Pest com `--no-output`. Reproduzido isoladamente:
+
+```text
+php vendor/pestphp/pest/bin/pest --no-output --configuration=phpunit.xml   → 1
+php vendor/pestphp/pest/bin/pest --configuration=phpunit.xml               → 0
+```
+
+Com Pest 5, `--no-output` faz o processo sair com 1 sem emitir erro. O Collision
+instalado é o v8.9.5, a versão mais recente publicada, pelo que não existe
+correção a montante disponível.
+
+**Impacto.** Alto se passasse despercebido: qualquer pipeline que use
+`php artisan test` falharia permanentemente, com o ecrã a dizer que os testes
+passaram. Inversamente, um pipeline que ignorasse o código de saída aceitaria
+testes vermelhos.
+
+**Contorno.** O comando canónico de testes é `composer test`, que invoca `pest`
+diretamente. `php artisan test` não é usado em lado nenhum: nem em scripts, nem
+na documentação, nem na CI de C0.9.
+
+**Estado.** Aberto a montante, contornado localmente. Reavaliar quando o Collision
+ou o Pest publicarem versão que o corrija.

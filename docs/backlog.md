@@ -12,7 +12,7 @@ Prioridade: **P1** bloqueia o marco atual · **P2** necessário no marco seguint
 
 | ID | Prioridade | Item | Ciclo |
 | --- | --- | --- | --- |
-| B-001 | P1 | Esqueleto Laravel 13 e baseline de qualidade (Pint, PHPStan, Pest) | C0.2 |
+| ~~B-001~~ | — | ~~Esqueleto Laravel 13 e baseline de qualidade (Pint, PHPStan, Pest)~~ — concluído em C0.2 | C0.2 |
 | B-002 | P1 | Docker Compose com PHP-FPM 8.4, Nginx, PostgreSQL 17 e Redis 8 | C0.3 |
 | B-003 | P1 | Frontend Inertia, Vue 3, TypeScript, Tailwind e Vite | C0.4 |
 | B-004 | P1 | Autenticação de clientes com Fortify e páginas Inertia próprias | C0.5 |
@@ -23,6 +23,8 @@ Prioridade: **P1** bloqueia o marco atual · **P2** necessário no marco seguint
 | B-009 | P1 | `docs/architecture.md`, `docs/security.md`, `docs/product-scope.md` | C0.10 |
 | B-010 | P2 | Configurar o remoto `git@github.com:melquivunge/bilhete.ao.git` e a branch `main` | antes de C0.9 |
 | B-011 | P2 | Subir o nível do PHPStan por passos, em ciclo próprio | após C0.2 |
+| B-015 | P2 | Reativar `checkModelProperties` do Larastan com modelos e migrations reais (KI-006) | Marco 1 |
+| B-016 | P2 | Substituir `resources/views/welcome.blade.php`, ainda a página por omissão do Laravel | C0.4 |
 | B-012 | P2 | Redação de dados sensíveis nos logs, conforme secção 10 do `agent.md` | C0.8 |
 | B-013 | P1 | ADR-005 — Inertia e Vue no frontend, escrito no ciclo que o implementa | C0.4 |
 | B-014 | P2 | Confirmar as tags exatas das imagens `php` e `node` no momento do build | C0.3 |

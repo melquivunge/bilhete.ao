@@ -4,6 +4,110 @@ Registo cronológico dos ciclos executados. Entrada mais recente no topo.
 
 ---
 
+## 2026-07-28 — C0.2 · Esqueleto Laravel 13 e baseline de qualidade
+
+**Marco.** 0 — Fundação.
+
+**Tarefa.** Instalar a aplicação Laravel 13 e pôr as ferramentas de qualidade a
+correr desde o primeiro commit de código.
+
+**Resultado.** Concluído. As quatro verificações da Etapa D aplicáveis a este
+ciclo passam.
+
+**Implementado.**
+- `laravel/laravel ^13.0` instalado (Laravel Framework 13.23.0) e integrado no
+  repositório preservando o `README.md` e o `.gitignore` já escritos em C0.1.
+- `composer.json` adaptado ao projeto: nome, licença proprietária, `php: ^8.4` e
+  `config.platform.php = 8.4.23`, para que a resolução de dependências no host
+  corresponda ao PHP do container, e não ao PHP 8.5 local.
+- Pest 5 com `pest-plugin-laravel`, em vez do PHPUnit puro do esqueleto.
+- Larastan 3 sobre PHPStan 2, nível 6.
+- Pint com preset Laravel mais `declare_strict_types`, `strict_comparison` e
+  `strict_param`; baseline aplicada a todo o esqueleto.
+- `.env.example` reescrito para PostgreSQL e Redis, com `SESSION_DRIVER=database`
+  e `MAIL_MAILER=array`.
+- Testes de exemplo do esqueleto substituídos por `tests/Feature/ApplicationBootTest.php`.
+- Scripts `composer lint`, `fix`, `analyse`, `test` e `check`.
+
+**Ficheiros principais.**
+
+```text
+composer.json · composer.lock · phpunit.xml · pint.json · phpstan.neon
+.env.example · .gitignore
+tests/Pest.php · tests/Feature/ApplicationBootTest.php
+database/factories/UserFactory.php
+app/ · bootstrap/ · config/ · database/ · routes/ · public/ · resources/
+```
+
+**Testes e verificações — executados no host, com PHP 8.5.6.**
+
+| Comando | Resultado |
+| --- | --- |
+| `composer validate --strict` | `./composer.json is valid` |
+| `./vendor/bin/pint --test` | `passed` |
+| `./vendor/bin/phpstan analyse --memory-limit=1G` | `passed`, 0 erros |
+| `./vendor/bin/pest` | `passed`, 3 testes, 3 asserções, código de saída 0 |
+| `composer check` (as quatro em sequência) | código de saída 0 |
+
+`php artisan test` **não** é usado: imprime `passed` mas sai com código 1 (KI-008).
+
+Nada correu em containers: o daemon do Docker continua parado (KI-001). Nenhuma
+afirmação sobre PostgreSQL ou Redis foi verificada neste ciclo, e nenhum teste
+toca na base de dados.
+
+**Problemas encontrados durante a execução, e como foram resolvidos.**
+
+1. `config.platform.php = 8.4.0` impedia a instalação: o `symfony/process` exigido
+   pelo Pest 5 requer `>= 8.4.1`. Consultei o `php.net` e fixei em 8.4.23, o patch
+   8.4 mais recente, em vez de escolher um número arbitrário.
+2. PHPStan esgotava os 128 MB do `php.ini` do host. Fixei `--memory-limit=1G` no
+   script `analyse`, para o resultado não depender da configuração de quem executa.
+3. PHPStan acusava `Call to an undefined method Pest\PendingCalls\TestCall::get()`.
+   A extensão PHPStan que o Pest fornece só cobre expectations de ordem superior,
+   não o `$this` dentro dos closures. Reescrevi o teste com a função
+   `Pest\Laravel\get()`, importada explicitamente: elimina o `$this` não tipado em
+   vez de o silenciar.
+4. Com `checkModelProperties: true`, o Larastan exige em `UserFactory::definition()`
+   a sintaxe `array<model property of ..., mixed>`, que o parser de PHPDoc desta
+   combinação de versões rejeita. Desliguei a verificação, com justificação no
+   `phpstan.neon`, e registei KI-006 e B-015 para a reativar no Marco 1, quando
+   existirem modelos e migrations reais. Não usei `@phpstan-ignore` nem baseline.
+5. `composer check` falhava no fim apesar de tudo passar. A causa não era o
+   `check`: `php artisan test` imprime `passed` e sai com código 1. O comando
+   `test` vem do Collision, que invoca o Pest com `--no-output`; com Pest 5 esse
+   argumento faz o processo sair com 1 sem qualquer mensagem de erro. O Collision
+   já está na última versão (8.9.5), logo não há correção a montante. Passei a
+   invocar `pest` diretamente no script `composer test`. Registado em KI-008.
+   Este é precisamente o tipo de falha que a secção 16 do `agent.md` visa: um
+   pipeline que reporta sucesso no ecrã e insucesso ao sistema.
+
+**Decisões tomadas.**
+- A base de dados de teste no `phpunit.xml` é PostgreSQL, não o SQLite em memória
+  que o esqueleto traz. Um `SELECT ... FOR UPDATE` não tem equivalente fiel em
+  SQLite, e testes de concorrência verdes em SQLite dariam falsa confiança sobre
+  reserva dupla de assentos. Nenhum teste toca na base de dados antes de C0.3.
+- A suíte `Unit` do `phpunit.xml` foi removida por não ter conteúdo; volta quando
+  existir um teste unitário real.
+- `APP_TIMEZONE` foi retirado do `.env.example`: o `config/app.php` do Laravel 13
+  fixa `'timezone' => 'UTC'` e não lê o ambiente, pelo que a variável seria
+  configuração morta.
+- Nenhuma pasta de domínio (`app/Domain/...`) foi criada: nenhuma teria conteúdo.
+
+**Riscos restantes.**
+- Tudo continua por verificar em containers (KI-001).
+- `resources/views/welcome.blade.php` ainda é a página por omissão do Laravel;
+  é substituída pelo shell Inertia em C0.4.
+- O esqueleto traz `laravel/pao`, que formata a saída das ferramentas em JSON.
+  É o default do Laravel 13 e foi mantido, mas explica o aspeto da saída.
+- PHPStan está no nível 6 com `checkModelProperties` desligado; a subida de rigor
+  é B-011 e B-015.
+
+**Próxima tarefa recomendada.** C0.3 — Docker Compose com PHP-FPM 8.4, Nginx,
+PostgreSQL 17 e Redis 8, com as sete extensões confirmadas por `php -m` e as
+migrations aplicadas dentro do container.
+
+---
+
 ## 2026-07-28 — C0.1 · Inspeção do repositório e plano do Marco 0
 
 **Marco.** 0 — Fundação.
@@ -97,4 +201,4 @@ como "imagem oficial" sem evidência.
 
 **Próxima tarefa recomendada.** C0.2 — instalar o esqueleto Laravel 13 e a
 baseline de qualidade (Pint, PHPStan, Pest), com `composer validate`,
-`pint --test`, `phpstan analyse` e `php artisan test` a passar.
+`pint --test`, `phpstan analyse` e `pest` a passar.

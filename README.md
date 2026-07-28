@@ -13,18 +13,26 @@ filme → cinema → data → sessão → assentos → checkout → pagamento �
 
 ## Estado atual
 
-**Marco 0 — Fundação · ciclo C0.1 concluído.**
+**Marco 0 — Fundação · ciclos C0.1 e C0.2 concluídos.**
 
-Não existe ainda aplicação Laravel neste repositório. O que existe é a inspeção
-do ambiente, as decisões de arquitetura tomadas e o plano de implementação do
-ambiente inicial.
+Existe uma aplicação Laravel 13 que arranca, com Pest, Pint e PHPStan a passar.
+Ainda **não** existem Docker, base de dados, frontend, autenticação nem CI: são
+os ciclos C0.3 a C0.9.
 
 O que já está feito e o que se segue está em [`docs/progress.md`](docs/progress.md)
 e em [`docs/plan-marco-0.md`](docs/plan-marco-0.md).
 
-Enquanto o ciclo C0.2 não for executado, **não há comandos de arranque** — as
-instruções de instalação serão escritas quando existir código que as suporte, e
-depois de terem sido executadas.
+As instruções completas de arranque são escritas em C0.10, depois de existir o
+ambiente Docker que elas descrevem. Por agora, a verificação local é:
+
+```bash
+composer install
+cp .env.example .env && php artisan key:generate
+composer check   # validate + pint + phpstan + pest
+```
+
+`composer check` não toca na base de dados. PostgreSQL e Redis entram em C0.3, e
+a partir daí a verificação que conta é a executada dentro dos containers.
 
 ---
 
