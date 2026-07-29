@@ -13,11 +13,12 @@ filme → cinema → data → sessão → assentos → checkout → pagamento �
 
 ## Estado atual
 
-**Marco 0 — Fundação · ciclos C0.1 a C0.4 concluídos.**
+**Marco 0 — Fundação · ciclos C0.1 a C0.5 concluídos.**
 
 Existe uma aplicação Laravel 13 a correr em Docker, ligada a PostgreSQL e Redis,
-a servir uma página Inertia com Vue 3 e TypeScript. Ainda **não** existem
-autenticação, painel administrativo nem CI: são os ciclos C0.5 a C0.9.
+a servir páginas Inertia com Vue 3 e TypeScript, com registo, entrada, saída e
+recuperação de palavra-passe para clientes. Ainda **não** existem painel
+administrativo, filas nem CI: são os ciclos C0.6 a C0.9.
 
 O que já está feito e o que se segue está em [`docs/progress.md`](docs/progress.md)
 e em [`docs/plan-marco-0.md`](docs/plan-marco-0.md).

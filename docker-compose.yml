@@ -70,8 +70,23 @@ services:
       - no-new-privileges:true
     ports:
       - "127.0.0.1:5173:5173"
-    # Instala dependências se ainda não existirem, e só então arranca o Vite.
-    command: ["sh", "-c", "[ -d node_modules/.bin ] || npm ci; exec npm run dev"]
+    # Instala dependências apenas se o Vite ainda não estiver instalado, e só
+    # então arranca o servidor de desenvolvimento.
+    #
+    # Não usa `npm ci`: exige um lockfile que no primeiro arranque do projeto
+    # ainda não existe, e apaga node_modules antes de instalar. Foi assim que
+    # este serviço morreu silenciosamente durante um dia inteiro — o container
+    # saía com `vite: not found` e nada o assinalava, porque as verificações
+    # corriam em containers efémeros com `docker compose run`.
+    command: ["sh", "-c", "[ -x node_modules/.bin/vite ] || npm install --no-audit --no-fund; exec npm run dev"]
+    healthcheck:
+      # Sem healthcheck, um serviço morto é indistinguível de um serviço a
+      # arrancar. Foi o que aconteceu aqui.
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:5173/@vite/client || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
 
   postgres:
     image: postgres:17-alpine

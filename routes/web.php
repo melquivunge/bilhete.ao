@@ -10,7 +10,9 @@ use Inertia\Inertia;
  *
  * NÃO é a home descrita na secção 11 do agent.md — seletor de localização, hero,
  * filmes em cartaz, cinemas — que pertence ao Marco 1 e depende do catálogo.
+ *
+ * Não devolve o nome do ambiente. Devolvia, e isso chegava a qualquer visitante
+ * anónimo no payload data-page, visível em "ver código-fonte", confirmando a um
+ * atacante se estava diante de produção ou de um ambiente de ensaio.
  */
-Route::get('/', fn () => Inertia::render('Inicio', [
-    'ambiente' => app()->environment(),
-]))->name('inicio');
+Route::get('/', fn () => Inertia::render('Inicio'))->name('inicio');

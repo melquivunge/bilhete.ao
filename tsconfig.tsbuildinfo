@@ -1,1 +1,1 @@
-{"root":["./resources/js/app.ts","./resources/js/env.d.ts","./resources/js/Pages/Inicio.vue","./vite.config.ts"],"version":"5.9.3"}
+{"root":["./resources/js/app.ts","./resources/js/env.d.ts","./resources/js/Components/CampoTexto.vue","./resources/js/Layouts/AuthLayout.vue","./resources/js/Pages/Inicio.vue","./resources/js/Pages/Auth/Entrar.vue","./resources/js/Pages/Auth/PedirRecuperacao.vue","./resources/js/Pages/Auth/RedefinirPalavraPasse.vue","./resources/js/Pages/Auth/Registar.vue","./vite.config.ts"],"version":"5.9.3"}

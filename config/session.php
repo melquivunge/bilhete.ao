@@ -171,7 +171,16 @@ return [
     |
     */
 
-    'secure' => env('SESSION_SECURE_COOKIE'),
+    /*
+     * Por omissão o Laravel deixa isto a null, o que resolve para false: o cookie
+     * de sessão seguiria sem a flag Secure. Numa implantação real em que alguém
+     * se esqueça da variável, o cookie de sessão viajaria em claro sobre HTTP.
+     *
+     * O valor por omissão passa a ser "seguro fora de desenvolvimento": só em
+     * `local` e `testing` é que o cookie pode ir sem Secure, porque aí não há
+     * TLS. A variável continua a poder ser definida explicitamente.
+     */
+    'secure' => env('SESSION_SECURE_COOKIE', ! in_array(env('APP_ENV', 'production'), ['local', 'testing'], true)),
 
     /*
     |--------------------------------------------------------------------------

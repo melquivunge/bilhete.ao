@@ -4,6 +4,128 @@ Registo cronológico dos ciclos executados. Entrada mais recente no topo.
 
 ---
 
+## 2026-07-29 — C0.5 · Autenticação de clientes com Fortify
+
+**Marco.** 0 — Fundação. Primeiro ciclo a tocar funcionalidade crítica.
+
+**Tarefa.** Registo, entrada, saída e recuperação de palavra-passe para clientes,
+com páginas Inertia escritas de raiz.
+
+**Resultado.** Concluído.
+
+**Implementado.**
+- `laravel/fortify` 1.37 com guard `web` partilhado, conforme ADR-006.
+- Apenas as funcionalidades que o Marco 0 pede: registo e recuperação. Gestão de
+  perfil, 2FA e passkeys desligadas, e as respetivas migrations e ações
+  **removidas** — esquema e código sem uso são dívida, não preparação.
+- Quatro páginas Inertia escritas de raiz, sem starter kit, com um componente
+  `CampoTexto` acessível: `label` associado, `aria-invalid`, `aria-describedby`,
+  `role="alert"` no erro, `autocomplete` e alvos de toque de 44 px.
+- Limitador de 5 tentativas por minuto por **email combinado com IP**: só por IP
+  castigaria utilizadores atrás do mesmo NAT; só por email deixaria qualquer
+  pessoa bloquear a conta de outra.
+- `HandleInertiaRequests` partilha apenas `id` e `name`. O email nunca entra.
+- `lang/pt/` com auth, passwords e as regras de validação em uso.
+
+**Ficheiros principais.**
+
+```text
+app/Providers/FortifyServiceProvider.php
+app/Http/Responses/RespostaUniformeDeRecuperacao.php
+app/Http/Middleware/HandleInertiaRequests.php · ContentSecurityPolicy.php
+app/Actions/Fortify/ · config/fortify.php · bootstrap/providers.php
+resources/js/Pages/Auth/ (4 páginas) · Layouts/AuthLayout.vue · Components/CampoTexto.vue
+resources/js/Pages/Inicio.vue · lang/pt/ · docker-compose.yml
+tests/Feature/Auth/ (5 ficheiros)
+```
+
+**Testes e verificações — dentro dos containers.**
+
+| Verificação | Resultado |
+| --- | --- |
+| `composer test` | **58 testes, 277 asserções**, saída 0 |
+| `composer check` | saída 0 |
+| `npm run lint / type-check / format:check / build` | saída 0 |
+| Browser: registo → logout → login → credenciais erradas | percurso completo, **0 erros de consola** |
+| Browser em modo build **e** em modo servidor Vite | ambos sem erros |
+
+**Três defeitos reais encontrados, nenhum previsto por mim.**
+
+1. **Enumeração de contas na recuperação.** O Fortify devolve o erro
+   `passwords.user` — "não encontramos utilizador com esse endereço" — quando a
+   conta não existe. Isso torna o formulário público um oráculo para descobrir
+   quem tem conta. Corrigido ligando o contrato
+   `FailedPasswordResetLinkRequestResponse` a `RespostaUniformeDeRecuperacao`, que
+   devolve a mesma mensagem da de sucesso. A notificação continua a sair só para
+   contas reais. Foi o **teste que escrevi que apanhou isto**, não uma revisão.
+
+2. **Serviço `node` morto desde o C0.4** (KI-013), apontado pelo utilizador. O
+   `npm ci` do comando do serviço exige lockfile, que não existia no primeiro
+   arranque. Passou invisível porque todas as verificações usam
+   `docker compose run --rm`, e porque o serviço não tinha `healthcheck` — a
+   inconsistência que a revisão do C0.3 classificou como MENOR (B-028). Não era
+   menor. Corrigido, e o servidor de desenvolvimento ficou finalmente exercitado.
+
+3. **Mensagens entregues como chaves de tradução** (KI-014). A interface mostrava
+   `auth.failed`. Só a verificação em browser o revelou: os meus testes comparavam
+   a resposta com `__('auth.failed')`, e sem `lang/pt/` ambos os lados eram a
+   mesma string errada. O teste media a igualdade de duas coisas erradas.
+
+**Correção de rumo no CSP.** Ao pôr o servidor do Vite a correr, descobri que o
+CSP do C0.4 o bloqueava: em modo de desenvolvimento o Vite injeta CSS por
+JavaScript e não conhece o nonce. O browser deu a razão exata — pela
+especificação, **um nonce faz o `unsafe-inline` ser ignorado**, pelo que os dois
+juntos não funcionam. Em `local` o `style-src` usa `unsafe-inline` sem nonce; fora
+de `local` é o inverso. Os testes correm em `testing` e continuam a exigir a
+política estrita.
+
+**Revisão independente de segurança.** Obrigatória, por autenticação estar na
+lista de funcionalidades críticas. Veredicto: aprovado com correções, sem
+achados críticos. O achado decisivo foi factual e contra mim: **o plano deste
+ciclo prometia limitador em login, registo e recuperação, e só o login o tinha.**
+Confirmei com `php artisan route:list` — `/register`, `/forgot-password` e
+`/reset-password` chegavam com `['web', 'guest:web']` e nada mais. O critério de
+fecho que eu próprio escrevi não estava cumprido.
+
+| Achado | O que fiz |
+| --- | --- |
+| Sem limitador em registo, recuperação e redefinição | `LimitarPedidosSensiveis`: 10/min por IP e 5/min por email nos três endpoints, com cinco testes |
+| Enumeração de contas ainda aberta no registo | **Aceite explicitamente** com mitigação, não corrigida — ver KI-015 e a justificação abaixo |
+| `SESSION_SECURE_COOKIE` sem valor por omissão seguro | Passa a ser seguro fora de `local`/`testing`; variável documentada no `.env.example` |
+| Política de palavra-passe com 8 caracteres e sem máximo | Mínimo de 10 e `max:255`, que fecha uma negação de serviço por payload gigante |
+| Nome do ambiente exposto a visitantes anónimos | Prop removida da rota, da página e do teste |
+| Canal lateral de temporização | **Aceite** — ver KI-016: era o volume ilimitado que o tornava explorável, e o volume acabou |
+| Sem prova de invalidação de sessão no logout | `SessaoTest`, que verifica também os atributos reais do `Set-Cookie` |
+
+**Duas decisões, não omissões.** A enumeração no registo fica aceite porque a
+alternativa — aceitar sempre e comunicar por email — exige verificação de
+endereço, adiada para o Marco 3; fingir sucesso sem enviar nada deixaria o
+utilizador legítimo à espera de um email que nunca chega, o que é pior. E
+`uncompromised()` não entrou na política de palavra-passe porque introduz uma
+chamada HTTP externa num caminho crítico e tornaria a suíte dependente da
+internet (B-040).
+
+**Uma asserção minha que era falsa.** Escrevi um teste que comparava constantes
+minhas em vez da configuração — tautológico. O PHPStan apanhou-o. Removi-o e
+declarei no comentário o que fica sem cobertura, em vez de manter uma asserção
+que dava confiança sem a merecer.
+
+**Riscos restantes.**
+- Verificação de email adiada para o Marco 3 (B-039).
+- Sem auditoria de eventos de autenticação (B-043), exigida pela secção 10.
+- A produção com `APP_ENV=local` por engano relaxaria o CSP (B-044, C0.8).
+- `lang/pt/validation.php` cobre só as regras em uso (B-029).
+- **B-042, condição de fecho do C0.6:** a marca de staff nunca pode entrar em
+  `#[Fillable]` do `User`. Uma allowlist é por modelo, não por rota — se a coluna
+  for acrescentada ali para conveniência dos formulários do Filament, passa a ser
+  atribuível também pelo `/register` público, e o controlo de acesso ao painel
+  torna-se decorativo. A promoção tem de passar por uma Action dedicada.
+
+**Próxima tarefa recomendada.** C0.6 — painel Filament em `/admin`, que só fecha
+com o teste a provar 403 a não-staff, e que valida KI-004 e KI-005.
+
+---
+
 ## 2026-07-28 — C0.4 · Frontend com Vite, Vue 3, TypeScript, Tailwind e Inertia
 
 **Marco.** 0 — Fundação.

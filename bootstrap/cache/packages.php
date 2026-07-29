@@ -6,6 +6,13 @@
       0 => 'Inertia\\ServiceProvider',
     ),
   ),
+  'laravel/fortify' => 
+  array (
+    'providers' => 
+    array (
+      0 => 'Laravel\\Fortify\\FortifyServiceProvider',
+    ),
+  ),
   'laravel/pail' => 
   array (
     'providers' => 
@@ -18,6 +25,13 @@
     'providers' => 
     array (
       0 => 'Laravel\\Pao\\Laravel\\ServiceProvider',
+    ),
+  ),
+  'laravel/passkeys' => 
+  array (
+    'providers' => 
+    array (
+      0 => 'Laravel\\Passkeys\\PasskeysServiceProvider',
     ),
   ),
   'laravel/tinker' => 

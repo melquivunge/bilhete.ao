@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Http\Middleware\ContentSecurityPolicy;
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\LimitarPedidosSensiveis;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -21,6 +22,9 @@ return Application::configure(basePath: dirname(__DIR__))
             // renderizada.
             ContentSecurityPolicy::class,
             HandleInertiaRequests::class,
+            // O Fortify só deixa configurar limitador no login; registo,
+            // recuperação e redefinição chegariam sem travão nenhum.
+            LimitarPedidosSensiveis::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

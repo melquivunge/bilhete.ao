@@ -41,10 +41,36 @@ class ContentSecurityPolicy
     {
         $nonceSource = $nonce === null ? '' : " 'nonce-{$nonce}'";
 
-        // connect-src inclui ws: em desenvolvimento por causa do HMR do Vite.
-        $connect = app()->environment('local')
-            ? "'self' ws: wss:"
-            : "'self'";
+        $emDesenvolvimento = app()->environment('local');
+
+        /*
+         * Concessões que existem apenas em `local`, e por motivos verificados
+         * em browser, não por precaução:
+         *
+         * - o servidor do Vite serve os assets de outra porta e mantém o HMR
+         *   por WebSocket, daí a origem extra e o ws:;
+         * - em modo de desenvolvimento o Vite injeta o CSS por JavaScript, em
+         *   runtime, e não tem forma de conhecer o nonce que o Blade gerou.
+         *
+         * `unsafe-inline` nunca sai de `local`. Os testes correm em `testing` e
+         * asseguram que a política de produção não o contém — é o teste
+         * "nunca recorre a unsafe-inline nem unsafe-eval" que trava isso.
+         */
+        $origemVite = $emDesenvolvimento ? ' http://127.0.0.1:5173' : '';
+        $connect = $emDesenvolvimento ? "'self' http://127.0.0.1:5173 ws: wss:" : "'self'";
+
+        /*
+         * Em `local`, o style-src usa `unsafe-inline` e **não** usa nonce. Não é
+         * escolha estética: pela especificação do CSP, a presença de um nonce
+         * faz o browser ignorar o `unsafe-inline`, e os dois juntos deixariam o
+         * Vite bloqueado tal como antes. O browser diz isto explicitamente:
+         * "'unsafe-inline' is ignored if either a hash or nonce value is present".
+         *
+         * Em produção é o inverso: nonce e nada de inline.
+         */
+        $estilo = $emDesenvolvimento
+            ? "style-src 'self'{$origemVite} 'unsafe-inline'"
+            : "style-src 'self'{$nonceSource}";
 
         return implode('; ', [
             "default-src 'self'",
@@ -53,9 +79,9 @@ class ContentSecurityPolicy
             "frame-ancestors 'none'",
             "object-src 'none'",
             "img-src 'self' data:",
-            "font-src 'self' data:",
-            "script-src 'self'{$nonceSource}",
-            "style-src 'self'{$nonceSource}",
+            "font-src 'self' data:{$origemVite}",
+            "script-src 'self'{$nonceSource}{$origemVite}",
+            $estilo,
             "connect-src {$connect}",
         ]);
     }

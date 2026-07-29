@@ -140,6 +140,112 @@ do container define um limite compatível em C0.3.
 
 ---
 
+## KI-015 — Enumeração de contas pelo formulário de registo: risco aceite
+
+**Observado em.** C0.5, 2026-07-29, por revisão independente de segurança.
+
+**Sintoma.** `POST /register` com um email já registado devolve erro de validação
+("já está em uso"); com um email novo, cria a conta. A diferença é um oráculo de
+existência de conta.
+
+**Estado: aceite, não corrigido.** Isto é uma decisão, não um esquecimento.
+
+**Porquê.** O login e a recuperação foram fechados porque nada se perde ao
+uniformizar as respostas. No registo, a alternativa seria aceitar sempre o pedido
+e comunicar por email que a conta já existe — o que exige um transporte de email
+real e verificação de endereço, ambos adiados para o Marco 3 por decisão anterior.
+Fingir sucesso sem enviar nada deixaria o utilizador legítimo à espera de um email
+que nunca chega, o que é pior do que o oráculo.
+
+**Mitigação em vigor.** `LimitarPedidosSensiveis` limita `POST /register` a dez
+pedidos por minuto por IP e cinco por email. Não elimina a enumeração; torna-a
+lenta o suficiente para deixar de ser prática à escala de uma lista.
+
+**Reavaliar.** No Marco 3, quando existir verificação de email: aí a via
+"aceitar sempre e notificar" passa a ser realizável, e esta entrada deve ser
+revisitada. Registado como B-041.
+
+---
+
+## KI-016 — Canal lateral de temporização em login e recuperação: risco aceite
+
+**Observado em.** C0.5, 2026-07-29, por revisão independente.
+
+**Sintoma.** As mensagens são idênticas, mas os tempos não: num login com email
+inexistente o `Hash::check` nunca corre; numa recuperação com conta existente há
+gravação de token e construção de notificação. A diferença é mensurável.
+
+**Estado: aceite, com mitigação.** Igualar tempos com precisão exige trabalho
+artificial em todos os caminhos e nunca fica perfeito. O que tornava este canal
+explorável era ter amostras ilimitadas — e isso deixou de existir: os três
+endpoints passaram a ter limitador. Sem volume, promediar o ruído de rede deixa
+de ser prático.
+
+**Reavaliar.** No Marco 7, na revisão de segurança anterior ao piloto (B-034).
+
+---
+
+## KI-013 — Serviço `node` morto durante um dia sem que nada o assinalasse
+
+**Observado em.** C0.5, 2026-07-29, apontado pelo utilizador a partir do Docker
+Desktop.
+
+**Sintoma.** O container `bilhete-ao-node-1` estava parado desde o C0.4. Os logs
+mostravam `npm error` seguido de `sh: vite: not found`.
+
+**Causa.** O comando do serviço era
+`[ -d node_modules/.bin ] || npm ci; exec npm run dev`. No primeiro arranque do
+projeto ainda não existia `package-lock.json`, o `npm ci` falhou — exige lockfile
+— e o `npm run dev` seguinte não encontrou o Vite. O container saiu e ficou assim.
+
+**Porque passou despercebido.** Todas as verificações do C0.4 e do C0.5 correram
+com `docker compose run --rm node`, que cria um container efémero e não usa o
+serviço de longa duração. Os resultados eram reais; o serviço é que estava morto.
+E, ao contrário dos outros quatro serviços, o `node` não tinha `healthcheck` — a
+revisão do C0.3 apontou essa inconsistência como MENOR (B-028). Não era menor: era
+a diferença entre um serviço morto ser visível ou invisível.
+
+**Correção.** `npm install` em vez de `npm ci`, condicionado à ausência do
+binário do Vite, e `healthcheck` que interroga `/@vite/client`. Verificado: o
+serviço passa a `healthy` e o servidor de desenvolvimento responde — caminho que
+o C0.4 tinha deixado como risco não exercitado.
+
+**Lição aplicada.** Um serviço sem healthcheck não é uma inconsistência
+cosmética. E verificar com containers efémeros não verifica o serviço declarado.
+
+**Estado.** Resolvido.
+
+---
+
+## KI-014 — Mensagens entregues ao utilizador como chaves de tradução
+
+**Observado em.** C0.5, 2026-07-29, em verificação no browser.
+
+**Sintoma.** Ao recusar um login, a interface mostrava literalmente `auth.failed`.
+O mesmo aconteceria com `passwords.sent` e com todas as regras de validação.
+
+**Causa.** O locale da aplicação é `pt` e o Laravel 11+ não traz ficheiros de
+idioma; sem `lang/pt/`, o tradutor devolve a própria chave.
+
+**Porque nenhum teste apanhou.** Os testes comparavam a resposta com
+`__('auth.failed')`. Sem tradução, ambos os lados eram a string `auth.failed` e a
+asserção passava — o teste media a igualdade de duas coisas erradas. O teste de
+enumeração continuava válido (as mensagens eram de facto iguais), mas nada
+provava que fossem legíveis.
+
+**Correção.** `lang/pt/auth.php`, `lang/pt/passwords.php` e `lang/pt/validation.php`
+com as regras em uso. Novos testes assertam as mensagens **no payload Inertia**,
+que é o que o browser recebe, e recusam qualquer mensagem que comece por
+`auth.`, `validation.` ou `passwords.`.
+
+**Limitação assumida.** `validation.php` cobre as regras usadas até aqui, não as
+mais de cem do Laravel. O que falta recai no fallback em inglês — visível, e
+portanto corrigível. Ver B-029.
+
+**Estado.** Resolvido para os fluxos de autenticação.
+
+---
+
 ## KI-012 — CSP estático bloqueava os estilos injetados pelo Inertia
 
 **Observado em.** C0.4, 2026-07-28, por revisão independente e reproduzido por

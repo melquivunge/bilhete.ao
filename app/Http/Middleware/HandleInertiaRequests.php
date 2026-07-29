@@ -19,17 +19,30 @@ class HandleInertiaRequests extends Middleware
     /**
      * Propriedades partilhadas por todas as páginas.
      *
-     * Nada de dados pessoais ou financeiros é partilhado por omissão: tudo o que
-     * for acrescentado aqui viaja em todas as respostas Inertia, inclusive as de
-     * páginas públicas.
+     * Tudo o que for acrescentado aqui viaja em todas as respostas Inertia,
+     * incluindo as de páginas públicas. Por isso a identidade partilhada é
+     * deliberadamente mínima: id e nome, o suficiente para a interface saber
+     * quem está autenticado.
+     *
+     * O email nunca entra aqui. É um dado pessoal, é o identificador de login, e
+     * não é preciso para desenhar interface nenhuma. Quando o Marco 3 trouxer
+     * checkout, quem precisar do email vai buscá-lo à página que o justifica.
      *
      * @return array<string, mixed>
      */
     public function share(Request $request): array
     {
+        $utilizador = $request->user();
+
         return [
             ...parent::share($request),
             'locale' => app()->getLocale(),
+            'auth' => [
+                'user' => $utilizador === null ? null : [
+                    'id' => $utilizador->id,
+                    'name' => $utilizador->name,
+                ],
+            ],
         ];
     }
 }
