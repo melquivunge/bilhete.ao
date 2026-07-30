@@ -72,6 +72,19 @@ mount, com `COPY` do código, `composer install --no-dev --optimize-autoloader`,
 sem ferramentas de build na camada final — é trabalho do Marco 7 e terá a sua
 própria decisão registada (B-017).
 
+## Limite descoberto em C0.9
+
+Esta decisão dá paridade de **software**: mesma versão de PHP, mesmas extensões,
+mesmas dependências. Não dá paridade de **sistema de ficheiros**.
+
+Um bind mount herda as propriedades do volume de origem. Em macOS isso significa
+insensibilidade a maiúsculas, mesmo dentro de um container Linux — e foi assim
+que um diretório `Pages` onde o pacote esperava `pages` passou por toda a
+verificação local, incluindo um clone limpo corrido dentro do container (KI-022).
+
+Portanto: "verificado no container" não cobre nomes de ficheiros, permissões nem
+ligações simbólicas. Para essas, a autoridade é a CI.
+
 ## Consequência operacional
 
 Qualquer entrada em `docs/progress.md` que reporte testes deve declarar **onde**

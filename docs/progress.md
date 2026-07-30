@@ -4,6 +4,60 @@ Registo cronológico dos ciclos executados. Entrada mais recente no topo.
 
 ---
 
+## 2026-07-30 — C0.9 · Integração contínua no GitHub Actions
+
+**Marco.** 0 — Fundação.
+
+**Resultado.** Concluído. **CI verde no GitHub**, run 30578934473, três jobs.
+
+**Implementado.**
+- Remoto configurado e código publicado em `github.com/melquivunge/bilhete.ao`.
+- Workflow com três jobs: **backend** (constrói a imagem do próprio `Dockerfile` e
+  corre tudo lá dentro), **frontend** (Node 24, a mesma versão do Compose) e
+  **segurança**.
+- A CI **não** usa `setup-php`: já convivemos com uma divergência conhecida entre
+  o PHP do host e o do container (KI-002); instalar PHP à parte criaria uma
+  terceira versão que ninguém controla.
+- Não usa `php artisan test`, que imprime "passed" e sai com código 1 (KI-008).
+- O job de segurança recusa artefactos de runtime versionados — a regressão do
+  KI-009 — e credenciais preenchidas no `.env.example`.
+
+**A CI apanhou três defeitos que a minha máquina escondia.**
+
+| Defeito | Por que passou localmente |
+| --- | --- |
+| UID do container (1000) diferente do dono dos ficheiros no runner (1001); o Git recusava por *dubious ownership* | O meu UID no macOS é 1000 — coincidência a passar por configuração correta |
+| 23 testes a exigir `public/build/manifest.json` | Eu tinha o build feito de execuções anteriores |
+| Diretório `Pages` onde o `inertia-laravel` procura `pages` (KI-022) | macOS não distingue maiúsculas |
+
+Nos três casos o código estava errado e a verificação local dizia que estava
+certo. É a justificação do ciclo inteiro, escrita por ele próprio.
+
+**O terceiro mudou uma coisa que eu vinha a assumir.** O ADR-007 diz que "a
+verificação que conta é a executada dentro do container". É verdade para versões
+de PHP, extensões e dependências — e **falso para o sistema de ficheiros**. Um
+bind mount herda a insensibilidade a maiúsculas do macOS mesmo visto de dentro de
+um container Linux. Cheguei a clonar o repositório de raiz para `/tmp` e a correr
+o teste no container: passou na mesma. A causa só apareceu ao ler o valor por
+omissão dentro de `vendor/`. O limite ficou escrito no próprio ADR-007.
+
+**Um erro meu de processo.** Empurrei um commit com o `composer check` a devolver
+1. Vi o `exit=1` e continuei. A verificação existe exatamente para travar isso.
+Corrigido no commit seguinte, e registado na mensagem.
+
+**Riscos restantes.**
+- O ramo `main` não está protegido: a CI passa a ser informativa até isso mudar
+  (B-049).
+- A verificação em browser continua manual (B-036).
+- Testes correm com `withoutVite()`: quem prova que os assets são gerados e
+  referenciados é o job de frontend e a verificação em browser.
+
+**Próxima tarefa recomendada.** C0.10 — `docs/architecture.md`, `docs/security.md`,
+`docs/product-scope.md`, README com arranque testado num clone limpo, e fecho do
+Marco 0.
+
+---
+
 ## 2026-07-30 — C0.8 · Health check, observabilidade e guardas de ambiente
 
 **Marco.** 0 — Fundação.

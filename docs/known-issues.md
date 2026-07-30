@@ -145,6 +145,40 @@ do container define um limite compatível em C0.3.
 
 ---
 
+## KI-022 — Verificar dentro do container NÃO protege contra diferenças de sistema de ficheiros
+
+**Observado em.** C0.9, 2026-07-30, pela CI no GitHub.
+
+**Sintoma.** Cinco testes falhavam na CI com
+`Inertia page component file [Inicio] does not exist.` Localmente passavam todos.
+
+**Causa.** O `inertia-laravel` procura os componentes em
+`resource_path('js/pages')`, em minúscula. O diretório do projeto era `Pages`.
+
+**O que torna isto importante, para além do bug.** O ADR-007 afirma que "a
+verificação que conta é a executada dentro do container". Isso é verdade para
+versões de PHP, extensões e dependências — e **falso para o sistema de
+ficheiros**. Um bind mount de macOS herda a insensibilidade a maiúsculas do
+volume de origem, mesmo visto de dentro de um container Linux.
+
+Cheguei a clonar o repositório de raiz para `/tmp` e a correr o teste dentro do
+container: **passou na mesma**. A causa só apareceu ao ler o valor por omissão
+dentro de `vendor/`.
+
+**Correção.** Diretório renomeado para `resources/js/pages`, alinhando com a
+convenção do pacote, em vez de publicar `config/inertia.php` só para contrariar o
+valor por omissão.
+
+**Consequência para o método.** Diferenças de sistema de ficheiros — sensibilidade
+a maiúsculas, permissões, ligações simbólicas — não são detetáveis em
+desenvolvimento nesta máquina. Só a CI as apanha. É mais uma razão para o C0.9
+não ser opcional, e para nenhuma alteração que dependa de nomes de ficheiros ser
+declarada verificada antes de a CI passar.
+
+**Estado.** Resolvido.
+
+---
+
 ## KI-021 — Redação de logs configurada mas sem efeito no canal predefinido
 
 **Observado em.** C0.8, 2026-07-30, ao inspecionar `storage/logs/laravel.log`.

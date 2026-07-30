@@ -16,7 +16,7 @@ Prioridade: **P1** bloqueia o marco atual · **P2** necessário no marco seguint
 | ~~B-002~~ | — | ~~Docker Compose com PHP-FPM 8.4, Nginx, PostgreSQL 17 e Redis 8~~ — concluído em C0.3 | C0.3 |
 | ~~B-003~~ | — | ~~Frontend Inertia, Vue 3, TypeScript, Tailwind e Vite~~ — concluído em C0.4 | C0.4 |
 | B-035 | P3 | Subir o TypeScript para a linha 7 quando o `vue-tsc` a suportar (KI-011) | após C0.4 |
-| B-036 | P2 | Automatizar a verificação em browser (zero erros de consola) na CI, hoje feita manualmente | C0.9 |
+| B-036 | P2 | Automatizar a verificação em browser (zero erros de consola) na CI, hoje feita manualmente | C0.10 |
 | B-037 | P3 | Skip-link e landmarks de navegação, quando existir cabeçalho real | Marco 1 |
 | B-029 | P2 | Completar `lang/pt/validation.php` à medida que novos formulários introduzem regras (KI-014) | Marco 1 |
 | ~~B-038~~ | — | ~~Limitador de taxa no registo e no pedido de recuperação~~ — feito em C0.5, incluindo redefinição | C0.5 |
@@ -36,9 +36,9 @@ Prioridade: **P1** bloqueia o marco atual · **P2** necessário no marco seguint
 | B-048 | P2 | Persistir a auditoria de autenticação em `audit_logs`, e não só em ficheiro de log | Marco 6 |
 | B-047 | P2 | Verificar chamadas a terceiros em cada nova dependência de interface; já apanhado duas vezes (KI-018, KI-020) | contínuo |
 | ~~B-007~~ | — | ~~Health check de PostgreSQL e Redis~~ — concluído em C0.8 | C0.8 |
-| B-008 | P1 | CI no GitHub Actions replicando as verificações locais | C0.9 |
+| ~~B-008~~ | — | ~~CI no GitHub Actions~~ — concluída e **verde no GitHub** em C0.9 | C0.9 |
 | B-009 | P1 | `docs/architecture.md`, `docs/security.md`, `docs/product-scope.md` | C0.10 |
-| B-010 | P2 | Configurar o remoto `git@github.com:melquivunge/bilhete.ao.git` e a branch `main` | antes de C0.9 |
+| ~~B-010~~ | — | ~~Configurar o remoto e a branch `main`~~ — feito em C0.9; código publicado | C0.9 |
 | B-011 | P2 | Subir o nível do PHPStan por passos, em ciclo próprio | após C0.2 |
 | B-015 | P2 | Reativar `checkModelProperties` do Larastan com modelos e migrations reais (KI-006) | Marco 1 |
 | ~~B-016~~ | — | ~~Substituir `resources/views/welcome.blade.php`~~ — removido em C0.4; a raiz é agora uma página Inertia | C0.4 |
