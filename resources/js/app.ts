@@ -15,15 +15,21 @@ void createInertiaApp({
 
     title: (title) => (title ? `${title} · ${appName}` : appName),
 
+    // O diretório é `pages`, em minúscula, porque é onde o inertia-laravel procura
+    // por omissão (resource_path('js/pages')). Estava em `Pages`: o macOS não
+    // distingue maiúsculas e resolvia à mesma, mas no Linux da CI o Inertia não
+    // encontrava componente nenhum. Um bind mount de macOS torna isto
+    // indetetável localmente, mesmo dentro de um container Linux.
+    //
     // Sem `eager`: cada página vira um chunk próprio, carregado só quando
     // visitada. Com `eager: true` todas as páginas entrariam no bundle de
     // entrada, e a partir do Marco 1 — catálogo, lugares, checkout, pagamento,
     // bilhete, scanner — abrir a home descarregaria o JS do site inteiro, o que
     // contraria o requisito de ser rápida em redes móveis (agent.md, secção 11).
     resolve: async (name) => {
-        const pages = import.meta.glob<DefineComponent>('./Pages/**/*.vue');
+        const pages = import.meta.glob<DefineComponent>('./pages/**/*.vue');
 
-        const page = pages[`./Pages/${name}.vue`];
+        const page = pages[`./pages/${name}.vue`];
 
         if (page === undefined) {
             throw new Error(`Página Inertia não encontrada: ${name}`);
