@@ -22,14 +22,16 @@ Prioridade: **P1** bloqueia o marco atual · **P2** necessário no marco seguint
 | ~~B-038~~ | — | ~~Limitador de taxa no registo e no pedido de recuperação~~ — feito em C0.5, incluindo redefinição | C0.5 |
 | B-040 | P3 | Decidir `uncompromised()` na política de palavra-passe: introduz chamada HTTP externa num caminho crítico | Marco 3 |
 | B-041 | P2 | Reavaliar a enumeração no registo quando existir verificação de email (KI-015) | Marco 3 |
-| B-042 | P1 | A marca de staff **nunca** pode entrar em `#[Fillable]` do User; promoção só por Action dedicada | C0.6 |
+| ~~B-042~~ | — | ~~A marca de staff nunca pode entrar em `#[Fillable]`~~ — cumprido em C0.6, com teste que tenta promover-se pelo registo público | C0.6 |
+| B-045 | P3 | Reavaliar `unsafe-eval` no CSP do painel; depende de o Filament expor a build CSP-safe do Alpine | Marco 7 |
+| B-046 | P2 | Testar que um Resource real do painel também nega acesso a não-staff, e o endpoint Livewire | Marco 1 |
 | B-043 | P2 | Auditoria de eventos de autenticação (login falhado, redefinição), exigida pela secção 10 | C0.8 |
 | B-044 | P2 | Estender a verificação de arranque do C0.8 a `APP_ENV=local` fora de desenvolvimento, que relaxaria o CSP | C0.8 |
 | B-039 | P2 | Verificação de email, adiada para o Marco 3 onde passa a ter consequência no checkout | Marco 3 |
 | B-027 | P2 | Retirar a prop `ambiente` da rota raiz ao substituir o shell pela home real | Marco 1 |
 | ~~B-028~~ | — | ~~`healthcheck` no serviço `node`~~ — feito em C0.5, depois de a sua ausência esconder um serviço morto (KI-013) | C0.5 |
 | ~~B-004~~ | — | ~~Autenticação de clientes com Fortify e páginas Inertia próprias~~ — concluído em C0.5 | C0.5 |
-| B-005 | P1 | Painel Filament em `/admin` com acesso negado por omissão | C0.6 |
+| ~~B-005~~ | — | ~~Painel Filament em `/admin` com acesso negado por omissão~~ — concluído em C0.6 | C0.6 |
 | B-006 | P1 | Redis, filas, Horizon com gate e scheduler | C0.7 |
 | B-007 | P1 | Health check de PostgreSQL e Redis sem exposição de topologia | C0.8 |
 | B-008 | P1 | CI no GitHub Actions replicando as verificações locais | C0.9 |

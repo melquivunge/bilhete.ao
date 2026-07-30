@@ -68,12 +68,15 @@ assets, a conviver com o pipeline Vite/Vue do site público.
 **Impacto.** Potencial conflito de assets ou de rotas de autenticação entre os
 dois pipelines.
 
-**Contorno.** Manter os pipelines separados e validar explicitamente em C0.6.
-
 **Âmbito.** Esta entrada cobre **apenas assets**. O risco de coexistência de rotas
 e autenticação está em KI-005.
 
-**Estado.** Por confirmar.
+**Resolução.** Confirmado em C0.6 por teste: o painel não carrega
+`resources/js/app.ts` nem o payload `data-page=` do Inertia, e o site público não
+carrega assets do Filament — `tests/Feature/Admin/CoexistenciaComOSitePublicoTest.php`.
+Os dois pipelines convivem sem se pisarem.
+
+**Estado.** Resolvido.
 
 ---
 
@@ -90,10 +93,12 @@ por decisão do ADR-006.
 redirecionamentos após login a apontarem para o público errado, ou throttling de
 um fluxo a afetar o outro.
 
-**Contorno.** Confirmar em C0.6 com testes que cubram os dois fluxos de login em
-simultâneo, incluindo o destino do redirecionamento de cada um.
+**Resolução.** Confirmado em C0.6 por teste: nenhuma rota é registada duas vezes
+(a asserção percorre toda a tabela de rotas), as duas entradas coexistem com
+componentes distintos, e autenticar-se pelo site público **não** dá acesso ao
+painel — `tests/Feature/Admin/CoexistenciaComOSitePublicoTest.php`.
 
-**Estado.** Por confirmar.
+**Estado.** Resolvido.
 
 ---
 
@@ -137,6 +142,64 @@ o que torna a verificação não reprodutível.
 do container define um limite compatível em C0.3.
 
 **Estado.** Resolvido por configuração.
+
+---
+
+## KI-017 — O painel administrativo esteve sem Content-Security-Policy
+
+**Observado em.** C0.6, 2026-07-30, por revisão independente de segurança.
+
+**Sintoma.** `curl -I /admin/login` não devolvia cabeçalho
+`Content-Security-Policy` nenhum, enquanto `/` devolvia.
+
+**Causa.** O array passado a `->middleware()` do painel Filament **substitui** o
+grupo `web` do Laravel, não o herda. O `ContentSecurityPolicy` foi anexado em
+`bootstrap/app.php` com `$middleware->web(append: ...)`, e por isso nunca chegava
+às rotas do painel, que o Filament registra com a sua própria lista.
+
+**Porque a verificação em browser não apanhou.** No C0.6 corri o painel num
+browser real e obtive zero erros de consola — o que era verdade e não provava
+nada: não existia política para violar. Um controlo ausente é silencioso por
+natureza; só um teste que exija a sua presença o deteta.
+
+**Correção.** `ContentSecurityPolicy::class.':painel'` acrescentado à lista de
+middleware do painel, com uma política própria. O painel precisa de
+`unsafe-eval` e `unsafe-inline` porque o Alpine, que o Filament usa, avalia as
+expressões `x-*` com `new Function()` — sem isso o painel deixa de funcionar. O
+que se mantém, e é o essencial, é `default-src 'self'` e `connect-src 'self'`: um
+XSS no painel não consegue exfiltrar para fora do domínio.
+
+**Consequência a lembrar.** Middleware acrescentado ao grupo `web` **não** chega
+ao painel sem ser duplicado no `AdminPanelProvider`. A sessão é partilhada; o
+middleware não é. Está escrito em comentário no próprio ficheiro.
+
+**Estado.** Resolvido, com teste em `tests/Feature/Admin/SegurancaDoPainelTest.php`.
+
+---
+
+## KI-018 — Filament enviava o nome do staff para ui-avatars.com
+
+**Observado em.** C0.6, 2026-07-30, **pelo CSP que acabara de ser acrescentado**.
+
+**Sintoma.** Com o CSP ativo no painel, o browser bloqueou quatro pedidos a
+`https://ui-avatars.com/api/?name=...`.
+
+**Causa.** O provedor de avatar por omissão do Filament constrói o avatar pedindo
+uma imagem a esse serviço, passando o nome do utilizador no URL.
+
+**Impacto.** O nome de cada membro do staff saía para um terceiro em cada
+carregamento de página do painel, e o painel ficava dependente de um host externo
+para renderizar. Dados pessoais a atravessar a fronteira da plataforma sem
+necessidade.
+
+**Correção.** `App\Filament\Avatares\AvatarLocalComIniciais` gera o avatar como
+SVG em `data:` URI. Sem rede, sem terceiros. Autorizar o domínio no CSP teria
+silenciado o sintoma e mantido a fuga.
+
+**Nota.** Este achado não estava em nenhum relatório: apareceu porque um controlo
+de segurança posto para conter XSS revelou uma fuga que ninguém tinha procurado.
+
+**Estado.** Resolvido, com teste.
 
 ---
 

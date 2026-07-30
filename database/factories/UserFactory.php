@@ -44,4 +44,17 @@ class UserFactory extends Factory
             'email_verified_at' => null,
         ]);
     }
+
+    /**
+     * Utilizador com acesso ao painel administrativo.
+     *
+     * Usa forceFill em vez de state() sobre atributos preenchíveis, porque
+     * `is_staff` não é atribuível em massa — ver App\Models\User.
+     */
+    public function staff(): static
+    {
+        return $this->afterCreating(function (User $utilizador): void {
+            $utilizador->forceFill(['is_staff' => true])->save();
+        });
+    }
 }

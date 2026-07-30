@@ -23,7 +23,10 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class ContentSecurityPolicy
 {
-    public function handle(Request $request, Closure $next): Response
+    /**
+     * @param  'site'|'painel'  $perfil
+     */
+    public function handle(Request $request, Closure $next, string $perfil = 'site'): Response
     {
         Vite::useCspNonce();
 
@@ -31,10 +34,49 @@ class ContentSecurityPolicy
 
         $response->headers->set(
             'Content-Security-Policy',
-            $this->policy(Vite::cspNonce())
+            $perfil === 'painel'
+                ? $this->politicaDoPainel()
+                : $this->policy(Vite::cspNonce())
         );
 
         return $response;
+    }
+
+    /**
+     * Política do painel administrativo (Filament, Livewire, Alpine).
+     *
+     * Precisa de `unsafe-eval` e `unsafe-inline`, e a razão é técnica, não
+     * comodidade: o Alpine avalia as expressões dos atributos `x-*` com
+     * `new Function()`, que o CSP classifica como eval. Sem `unsafe-eval` o
+     * painel deixa simplesmente de funcionar — não é uma degradação subtil.
+     *
+     * Isto é mais fraco do que a política do site público, e a diferença é
+     * deliberada e documentada. O que ainda se ganha, e não é pouco, é que
+     * `default-src 'self'` continua a impedir carregar scripts, imagens ou
+     * pedidos de origens externas: um XSS refletido no painel não consegue
+     * exfiltrar para um domínio do atacante.
+     *
+     * Nota: o painel não usa o nonce. Um nonce em `script-src` faria o browser
+     * ignorar o `unsafe-inline` (foi o que KI-012 ensinou), e aqui o
+     * `unsafe-inline` é necessário.
+     *
+     * Alternativa rejeitada: a build "CSP-safe" do Alpine, que o Filament não
+     * expõe como opção de configuração. Reavaliar no Marco 7 (B-045).
+     */
+    private function politicaDoPainel(): string
+    {
+        return implode('; ', [
+            "default-src 'self'",
+            "base-uri 'self'",
+            "form-action 'self'",
+            "frame-ancestors 'none'",
+            "object-src 'none'",
+            "img-src 'self' data: blob:",
+            "font-src 'self' data:",
+            "script-src 'self' 'unsafe-eval' 'unsafe-inline'",
+            "style-src 'self' 'unsafe-inline'",
+            "connect-src 'self'",
+        ]);
     }
 
     private function policy(?string $nonce): string

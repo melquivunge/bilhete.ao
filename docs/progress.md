@@ -4,6 +4,98 @@ Registo cronológico dos ciclos executados. Entrada mais recente no topo.
 
 ---
 
+## 2026-07-30 — C0.6 · Painel administrativo Filament com acesso negado por omissão
+
+**Marco.** 0 — Fundação.
+
+**Tarefa.** Painel Filament em `/admin`, acessível apenas a staff, isolado da
+autenticação de clientes.
+
+**Resultado.** Concluído.
+
+**Implementado.**
+- Filament 5.7 com painel `admin`. Registo, recuperação de palavra-passe e página
+  de perfil do Filament ficam **desligados** — superfície mínima.
+- Marca `is_staff`, booleana, com valor por omissão `false` na base de dados **e**
+  no modelo. Não é um sistema de papéis: esse é do Marco 1 (B-020), depende de
+  cinemas existirem, e vai substituir esta coluna.
+- `canAccessPanel()` compara estritamente com `true`. Nega perante `null`, `1`,
+  string vazia ou coluna ausente.
+- `is_staff` fora do `#[Fillable]`, com `PromoverUtilizadorAStaff` como único
+  caminho de escrita (B-042, condição de fecho do ciclo).
+- Comando `bilhete:criar-staff`, que pede a palavra-passe interativamente e nunca
+  a aceita como argumento — um argumento ficaria no histórico da shell e na lista
+  de processos.
+- Avatares gerados localmente, em `data:` URI.
+
+**Testes e verificações — dentro dos containers.**
+
+| Verificação | Resultado |
+| --- | --- |
+| `composer test` | **85 testes, 356 asserções**, saída 0 |
+| `composer check` | saída 0 |
+| `npm run lint / type-check / format:check / build` | saída 0 |
+| Browser: anónimo em `/admin` | redirecionado para `/admin/login` |
+| Browser: **cliente autenticado no site público** em `/admin` | **HTTP 403** |
+| Browser: staff em `/admin` | entra no painel, 0 erros de consola |
+
+**KI-004 e KI-005 fechados**, abertos desde o C0.1: nenhuma rota registada duas
+vezes, entradas separadas por contexto, e cada pipeline de assets carrega só os
+seus.
+
+**Revisão independente de segurança.** Aprovada com correções, sem achados
+críticos. A fronteira central foi confirmada por leitura do código do Filament, e
+não apenas do meu comentário: `canAccessPanel()` é chamado por um único middleware
+que envolve todas as rotas autenticadas do painel, pelo que um Resource futuro não
+o pode contornar por esquecimento.
+
+O achado ALTO desmentiu uma coisa que eu tinha assumido: **o `/admin` não emitia
+Content-Security-Policy nenhum** (KI-017). O array de middleware do Filament
+substitui o grupo `web` em vez de o herdar, pelo que o middleware anexado em
+`bootstrap/app.php` nunca chegava lá. Confirmei com `curl -I`: `/` devolvia a
+política, `/admin/login` devolvia zero.
+
+O mais incómodo é *porque* passou: eu tinha corrido o painel num browser real e
+obtido zero erros de consola. Era verdade e não provava nada — não havia política
+para violar. **Um controlo ausente é silencioso; só um teste que exija a sua
+presença o deteta.** Foi essa a lição, e está agora em
+`tests/Feature/Admin/SegurancaDoPainelTest.php`.
+
+| Achado | O que fiz |
+| --- | --- |
+| `/admin` sem CSP (KI-017) | Middleware acrescentado à lista do painel, com política própria, e teste a exigi-lo |
+| Mass assignment bloqueado em silêncio | `Model::preventSilentlyDiscardingAttributes()` fora de produção: passa a rebentar em vez de descartar |
+| Divergência de middleware painel/site | Documentada em comentário no `AdminPanelProvider` |
+| `/admin/login` sem teste de rate limiting | Teste próprio, para a proteção não depender de confiança no vendor |
+| KI-004/KI-005 ainda "por confirmar" na documentação apesar de testados | Corrigido, com referência aos testes concretos |
+
+**Um achado que não estava em relatório nenhum.** Ao acrescentar o CSP, o browser
+bloqueou quatro pedidos a `ui-avatars.com`: o provedor de avatar por omissão do
+Filament enviava **o nome de cada membro do staff** para um serviço de terceiros
+em cada carregamento do painel (KI-018). Escrevi um provedor local que gera o SVG
+em `data:` URI. Autorizar o domínio no CSP teria calado o sintoma e mantido a
+fuga. Um controlo posto para conter XSS revelou uma fuga que ninguém procurava.
+
+**Compromisso assumido e documentado.** A política do painel usa `unsafe-eval` e
+`unsafe-inline`, porque o Alpine avalia as expressões `x-*` com `new Function()` e
+sem isso o painel simplesmente não funciona. É mais fraca do que a do site
+público. O que se mantém, e é o que importa, é `default-src 'self'` e
+`connect-src 'self'`: um XSS no painel não consegue exfiltrar para fora do
+domínio. Reavaliar no Marco 7 (B-045).
+
+**Riscos restantes.**
+- A garantia de que o middleware do painel envolve *todas* as rotas futuras vem da
+  leitura do código do Filament, não de um teste contra um Resource real — não
+  existe nenhum Resource ainda (B-046).
+- `is_staff` só não é dívida se o Marco 1 o **substituir** por papéis por empresa e
+  cinema, em vez de lhe acrescentar mais bandeiras booleanas.
+- Contas de teste criadas durante a verificação foram removidas; a base de
+  desenvolvimento está sem utilizadores.
+
+**Próxima tarefa recomendada.** C0.7 — Redis, filas, Horizon com gate e scheduler.
+
+---
+
 ## 2026-07-29 — C0.5 · Autenticação de clientes com Fortify
 
 **Marco.** 0 — Fundação. Primeiro ciclo a tocar funcionalidade crítica.
