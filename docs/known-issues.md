@@ -145,6 +145,58 @@ do container define um limite compatível em C0.3.
 
 ---
 
+## KI-019 — Painel do Horizon partido pela política CSP do site
+
+**Observado em.** C0.7, 2026-07-30, em verificação no browser.
+
+**Sintoma.** `/horizon` respondia 200 a um utilizador staff, mas o corpo da página
+ficava **vazio**. Na consola: um script inline bloqueado por `script-src` com
+nonce, e uma folha de estilo de `fonts.bunny.net` bloqueada.
+
+**Causa.** O Horizon registra as suas rotas com o grupo `web` por nome, pelo que
+herdou o `ContentSecurityPolicy` do site — o inverso do Filament, que substitui o
+grupo (KI-017). Mas a política do site usa nonce em `script-src`, e o Horizon
+executa um script inline com a sua configuração. Um nonce não cobre um script
+inline que não o transporta.
+
+**Porque o meu teste não apanhou.** Eu tinha escrito um teste a exigir a presença
+do cabeçalho CSP em `/horizon`, e ele passava. Verificava que a política existia,
+não que o painel funcionava. **Presença de um controlo não é o mesmo que
+compatibilidade com o que ele protege.**
+
+**Correção.** O middleware passa a detetar o caminho do Horizon e a aplicar a
+política dos painéis. A deteção é feita no middleware, e não acrescentando outro
+ao `config/horizon.php`, porque dois cabeçalhos CSP na mesma resposta são
+aplicados como interseção — o painel ficaria bloqueado pela mais restritiva.
+
+**Estado.** Resolvido, com teste que assere a política correta, não só a sua
+existência.
+
+---
+
+## KI-020 — Horizon carregava uma fonte de fonts.bunny.net
+
+**Observado em.** C0.7, 2026-07-30, **pelo CSP**, exatamente como KI-018.
+
+**Sintoma.** O layout do Horizon incluía `<link>` para
+`https://fonts.bunny.net/css?family=figtree`.
+
+**Impacto.** O IP e o referer de cada membro do staff saíam para um terceiro em
+cada carregamento do painel, e o painel dependia de um host externo.
+
+**Correção.** Layout sobreposto em `resources/views/vendor/horizon/layout.blade.php`,
+sem a fonte externa, com a pilha de fontes do sistema. Autorizar o domínio no CSP
+teria calado o sintoma e mantido a chamada.
+
+**Padrão que já se repetiu duas vezes.** Filament com `ui-avatars.com`, Horizon
+com `fonts.bunny.net`. Pacotes administrativos assumem acesso à internet e a
+terceiros. Vale a pena verificar isto em cada dependência de interface que entrar
+no projeto — e o CSP é o instrumento que o revela.
+
+**Estado.** Resolvido, com teste.
+
+---
+
 ## KI-017 — O painel administrativo esteve sem Content-Security-Policy
 
 **Observado em.** C0.6, 2026-07-30, por revisão independente de segurança.

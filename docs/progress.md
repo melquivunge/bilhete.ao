@@ -4,6 +4,79 @@ Registo cronológico dos ciclos executados. Entrada mais recente no topo.
 
 ---
 
+## 2026-07-30 — C0.7 · Redis, filas, Horizon e scheduler
+
+**Marco.** 0 — Fundação.
+
+**Tarefa.** Infraestrutura assíncrona pronta para a expiração de reservas do
+Marco 2, com o painel do Horizon protegido.
+
+**Resultado.** Concluído.
+
+**Implementado.**
+- `QUEUE_CONNECTION=redis` e `CACHE_STORE=redis`. As **sessões continuam em
+  PostgreSQL**: a secção 3 do `agent.md` não lista sessões entre os usos do Redis,
+  e um teste impede que alguém as mova por conveniência.
+- Horizon 5.48 com serviço `horizon` próprio no Compose, e não um processo dentro
+  do container da aplicação — um worker que morre tem de ser visível.
+- `healthcheck` com `horizon:status`, pela lição do KI-013: um worker parado não
+  pode ser indistinguível de um worker ocioso.
+- **O gate aplica-se também em `local`.** Por omissão o Horizon abre o painel a
+  todos em desenvolvimento e só aplica o gate fora dele; isso foi desligado, para
+  o caminho testado ser o mesmo que protege.
+- Job de verificação sem lógica de negócio, e `horizon:snapshot` agendado. Nenhuma
+  tarefa de negócio está agendada: a primeira será a expiração de reservas, e essa
+  não entra sem os testes de concorrência do Marco 2.
+
+**Testes e verificações — dentro dos containers.**
+
+| Verificação | Resultado |
+| --- | --- |
+| `composer test` | **97 testes, 377 asserções**, saída 0 |
+| `composer check` | saída 0 |
+| `docker compose ps` | seis serviços `healthy`, incluindo `horizon` |
+| Percurso da fila | job despachado → **Redis** → consumido pelo worker noutro container → efeito observável |
+| Chaves no Redis | `horizon:recent_jobs` e `horizon:job:App\Jobs\...` presentes |
+| `/horizon` anónimo | **403** |
+| `/horizon` cliente autenticado | **403** |
+| `/horizon` staff, em browser | painel renderiza, zero falhas de rede |
+
+**Dois defeitos que só o browser apanhou, e ambos são a mesma lição.**
+
+1. **O painel do Horizon renderizava vazio** (KI-019). O Horizon herda o grupo
+   `web` — o inverso do Filament, que o substitui — e recebeu a política do site,
+   que usa nonce em `script-src`. O Horizon executa um script inline com a sua
+   configuração, e um nonce não cobre um script inline que não o transporta.
+
+   O incómodo: eu **tinha** um teste a exigir a presença do cabeçalho CSP em
+   `/horizon`, e passava. Verificava que a política existia, não que o painel
+   funcionava. **Presença de um controlo não é compatibilidade com o que ele
+   protege.** O teste passou a asserir a política correta.
+
+2. **O Horizon carregava uma fonte de `fonts.bunny.net`** (KI-020) — IP e referer
+   de cada membro do staff a sair para um terceiro em cada carregamento. Foi o CSP
+   que o revelou, exatamente como no C0.6 com o `ui-avatars.com` do Filament.
+   Layout sobreposto, sem a fonte externa.
+
+**Um padrão que já se repetiu duas vezes.** Pacotes administrativos assumem acesso
+à internet e a terceiros: Filament com avatares, Horizon com fontes. Nenhum dos
+dois estava em relatório de revisão — foi o CSP que os expôs, nos dois casos.
+Passou a item contínuo do backlog (B-047).
+
+**Riscos restantes.**
+- A política dos painéis usa `unsafe-eval` e `unsafe-inline`; o site público
+  mantém nonce sem inline (B-045).
+- Nenhuma tarefa de negócio agendada, por desenho. O primeiro job crítico é a
+  expiração de reservas, no Marco 2.
+- Notificações do Horizon (SMS, email, Slack) não configuradas: envio real de
+  mensagens é proibido pela secção 16 até ser autorizado.
+
+**Próxima tarefa recomendada.** C0.8 — health check de PostgreSQL e Redis sem
+exposição de topologia, com exceções apanhadas e a verificação de arranque que
+recusa `APP_DEBUG=true` fora de desenvolvimento (B-043, B-044).
+
+---
+
 ## 2026-07-30 — C0.6 · Painel administrativo Filament com acesso negado por omissão
 
 **Marco.** 0 — Fundação.

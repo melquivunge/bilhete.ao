@@ -32,6 +32,21 @@ class ContentSecurityPolicy
 
         $response = $next($request);
 
+        /*
+         * O Horizon registra as suas rotas com o grupo `web` por nome, pelo que
+         * herda este middleware sem o declarar. Não pode receber a política do
+         * site: o painel do Horizon executa um script inline com a sua
+         * configuração, e um nonce em script-src não o cobre.
+         *
+         * A deteção é feita aqui, e não acrescentando outro middleware ao
+         * config/horizon.php, porque dois cabeçalhos CSP na mesma resposta são
+         * aplicados como interseção — o painel ficaria bloqueado pela política
+         * mais restritiva das duas.
+         */
+        if ($perfil === 'site' && $this->ehPainelAdministrativo($request)) {
+            $perfil = 'painel';
+        }
+
         $response->headers->set(
             'Content-Security-Policy',
             $perfil === 'painel'
@@ -40,6 +55,13 @@ class ContentSecurityPolicy
         );
 
         return $response;
+    }
+
+    private function ehPainelAdministrativo(Request $request): bool
+    {
+        $prefixo = trim((string) config('horizon.path', 'horizon'), '/');
+
+        return $prefixo !== '' && $request->is($prefixo, "{$prefixo}/*");
     }
 
     /**

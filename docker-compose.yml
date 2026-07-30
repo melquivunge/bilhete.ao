@@ -55,6 +55,39 @@ services:
       retries: 5
       start_period: 15s
 
+  # Worker das filas. Serviço próprio, e não um processo dentro do container da
+  # aplicação: um worker que morre tem de ser visível e reiniciável sozinho.
+  horizon:
+    build:
+      context: .
+      target: development
+      args:
+        UID: ${UID:-1000}
+        GID: ${GID:-1000}
+    command: ["php", "artisan", "horizon"]
+    volumes:
+      - .:/var/www/html
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      DB_HOST: postgres
+      REDIS_HOST: redis
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      # `horizon:status` devolve estado diferente de zero quando o supervisor não
+      # está a correr ou está em pausa. Sem isto, um Horizon parado seria
+      # indistinguível de um Horizon ocioso — o erro que o serviço node cometeu
+      # em C0.4 e que passou um dia inteiro sem ser notado (KI-013).
+      test: ["CMD-SHELL", "php artisan horizon:status | grep -q running"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
   # Node corre em container, e não no host. O host tem Node 26 (canal Current) e
   # a decisão é Node 24 (LTS Krypton), pela mesma razão que levou a PHP 8.4 em
   # vez de 8.5. Ver ADR-005.

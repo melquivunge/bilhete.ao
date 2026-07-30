@@ -32,7 +32,8 @@ Prioridade: **P1** bloqueia o marco atual · **P2** necessário no marco seguint
 | ~~B-028~~ | — | ~~`healthcheck` no serviço `node`~~ — feito em C0.5, depois de a sua ausência esconder um serviço morto (KI-013) | C0.5 |
 | ~~B-004~~ | — | ~~Autenticação de clientes com Fortify e páginas Inertia próprias~~ — concluído em C0.5 | C0.5 |
 | ~~B-005~~ | — | ~~Painel Filament em `/admin` com acesso negado por omissão~~ — concluído em C0.6 | C0.6 |
-| B-006 | P1 | Redis, filas, Horizon com gate e scheduler | C0.7 |
+| ~~B-006~~ | — | ~~Redis, filas, Horizon com gate e scheduler~~ — concluído em C0.7 | C0.7 |
+| B-047 | P2 | Verificar chamadas a terceiros em cada nova dependência de interface; já apanhado duas vezes (KI-018, KI-020) | contínuo |
 | B-007 | P1 | Health check de PostgreSQL e Redis sem exposição de topologia | C0.8 |
 | B-008 | P1 | CI no GitHub Actions replicando as verificações locais | C0.9 |
 | B-009 | P1 | `docs/architecture.md`, `docs/security.md`, `docs/product-scope.md` | C0.10 |
