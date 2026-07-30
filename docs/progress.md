@@ -4,6 +4,89 @@ Registo cronológico dos ciclos executados. Entrada mais recente no topo.
 
 ---
 
+## 2026-07-30 — C0.10 · Documentação e fecho do Marco 0
+
+**Marco.** 0 — Fundação. **Último ciclo.**
+
+**Resultado.** Concluído. **Marco 0 fechado.**
+
+**Implementado.**
+- `docs/architecture.md`, `docs/security.md` e `docs/product-scope.md`.
+- README reescrito, com o arranque na ordem correta: construir a imagem e
+  instalar dependências **antes** de levantar os serviços. O nginx precisa de uma
+  aplicação para servir.
+
+**Critério de fecho, verificado por execução.** Escrito no C0.1: "num clone limpo
+do repositório, executar pela ordem exata os comandos do README leva a todos os
+serviços `healthy` e ao health check a devolver 200."
+
+Foi feito literalmente: parei a stack de trabalho, clonei o repositório para um
+diretório novo, segui apenas os passos do README com um nome de projeto Compose
+distinto, e obtive:
+
+```text
+app        healthy      horizon    healthy
+nginx      healthy      node       healthy
+postgres   healthy      redis      healthy
+
+GET /saude  ->  {"estado":"ok"}  [HTTP 200]
+GET /       ->  HTTP 200
+```
+
+Nenhum passo fora do README foi necessário. O clone foi desmontado com os volumes.
+
+**Os três documentos descrevem o que existe, não o que está planeado.** O
+`product-scope.md` diz, com todas as letras, que não há um único filme, cinema,
+sessão ou bilhete no sistema. O `security.md` liga cada controlo ao teste que o
+prova, e lista os quatro riscos aceites com a justificação de cada um. O
+`architecture.md` tem uma secção "o que não existe".
+
+---
+
+# MARCO 0 — FUNDAÇÃO · CONCLUÍDO
+
+Dez ciclos, 2026-07-28 a 2026-07-30.
+
+| | |
+| --- | --- |
+| Testes | **126, com 425 asserções** |
+| CI | verde no GitHub, três jobs |
+| Serviços | seis, todos com healthcheck |
+| ADRs | 4 escritos, 3 reservados para os marcos que os tornam reais |
+| Problemas registados | 22, com causa e estado |
+
+**O que a fundação garante.** PostgreSQL como fonte de verdade e Redis nunca como
+tal. Autenticação de clientes com limitadores nos quatro endpoints públicos.
+Painel administrativo que nega por omissão, com privilégio impossível de atribuir
+em massa. CSP com nonce no site público. Redação de dados sensíveis nos logs e
+auditoria de autenticação. Verificação de saúde que distingue liveness de
+readiness. CI que constrói a mesma imagem que corre em desenvolvimento.
+
+**Padrão que dominou os defeitos encontrados.** Das falhas reais deste marco, a
+maioria foi de testes que verificavam **declaração** em vez de **comportamento**:
+o CSP presente mas incompatível com o painel, a redação configurada mas sem
+efeito, o cabeçalho existente num painel que renderizava vazio. Nos três casos o
+teste passava. Foi sempre a verificação em browser, o ficheiro de log real ou a CI
+que apanharam.
+
+Regra que fica para o Marco 1: **um teste que assere configuração não substitui um
+teste que assere efeito.**
+
+**O que a CI apanhou e a máquina local escondia.** UID coincidente por acaso,
+assets de build presentes de execuções anteriores, e um diretório `Pages` onde o
+pacote procura `pages`. O último obrigou a corrigir o ADR-007: correr dentro do
+container dá paridade de software, não de sistema de ficheiros.
+
+**Decisões que o Marco 1 tem de tomar antes de modelar dados.** Unidade monetária
+do Kwanza (B-021), identificadores públicos (B-022), fuso de apresentação (B-023)
+e modelo de papéis por empresa e cinema (B-020) — este último **substitui** a marca
+booleana criada em C0.6.
+
+**Dependência externa por resolver.** O ramo `main` não está protegido no GitHub
+(B-049). Até estar, a CI é informativa: nada impede um push que parta o build.
+
+---
+
 ## 2026-07-30 — C0.9 · Integração contínua no GitHub Actions
 
 **Marco.** 0 — Fundação.

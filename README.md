@@ -13,42 +13,96 @@ filme → cinema → data → sessão → assentos → checkout → pagamento �
 
 ## Estado atual
 
-**Marco 0 — Fundação · ciclos C0.1 a C0.5 concluídos.**
+**Marco 0 — Fundação · concluído.**
 
-Existe uma aplicação Laravel 13 a correr em Docker, ligada a PostgreSQL e Redis,
-a servir páginas Inertia com Vue 3 e TypeScript, com registo, entrada, saída e
-recuperação de palavra-passe para clientes. Ainda **não** existem painel
-administrativo, filas nem CI: são os ciclos C0.6 a C0.9.
+Existe uma aplicação Laravel 13 em Docker, ligada a PostgreSQL e Redis, a servir
+páginas Inertia com Vue 3 e TypeScript, com autenticação de clientes, painel
+administrativo Filament, filas com Horizon, verificação de saúde e integração
+contínua verde no GitHub.
 
-O que já está feito e o que se segue está em [`docs/progress.md`](docs/progress.md)
-e em [`docs/plan-marco-0.md`](docs/plan-marco-0.md).
+**Não existe ainda catálogo**: nem filmes, nem cinemas, nem sessões, nem lugares,
+nem bilhetes. Isso é o Marco 1. Ver [`docs/product-scope.md`](docs/product-scope.md).
+
+| Documento | Conteúdo |
+| --- | --- |
+| [`docs/architecture.md`](docs/architecture.md) | Como o sistema está montado |
+| [`docs/security.md`](docs/security.md) | Controlos em vigor e riscos aceites |
+| [`docs/product-scope.md`](docs/product-scope.md) | O que o produto é e por onde vai |
+| [`docs/progress.md`](docs/progress.md) | Registo de cada ciclo executado |
+| [`docs/known-issues.md`](docs/known-issues.md) | Problemas conhecidos, com causa e estado |
 
 ### Arranque
+
+Requer apenas Docker. Não é preciso PHP, Composer nem Node instalados.
+
+**1.** Criar o ficheiro de ambiente:
 
 ```bash
 cp .env.example .env
 ```
 
-Depois **define `DB_PASSWORD` e `REDIS_PASSWORD` no `.env`** com valores à tua
-escolha. Não há valores por omissão: nenhuma credencial funcional é versionada, e
-o Compose recusa arrancar sem eles, em vez de cair para uma senha pública.
+**2.** Definir `DB_PASSWORD` e `REDIS_PASSWORD` no `.env`, com valores à escolha.
+Não têm valor por omissão: nenhuma credencial funcional é versionada, e o Compose
+recusa arrancar sem elas em vez de cair para uma senha pública.
+
+**3.** Construir a imagem e instalar dependências **antes** de levantar os
+serviços — o nginx precisa de uma aplicação para servir:
 
 ```bash
-docker compose up -d --build
-docker compose exec app composer install
-docker compose exec app php artisan key:generate
-docker compose exec app php artisan migrate
+docker compose build
+docker compose run --rm --no-deps app composer install
+docker compose run --rm --no-deps app php artisan key:generate
+docker compose run --rm --no-deps node npm ci
+docker compose run --rm --no-deps node npm run build
 ```
 
-Aplicação em `http://127.0.0.1:8080`. Verificação:
+**4.** Levantar tudo e aplicar as migrations:
 
 ```bash
-docker compose exec app composer check              # validate + pint + phpstan + pest
-docker compose run --rm node npm run type-check     # e ainda: lint, format:check, build
+docker compose up -d
+docker compose exec app php artisan migrate --force
+```
+
+**5.** Confirmar:
+
+```bash
+docker compose ps                                  # seis serviços healthy
+curl http://127.0.0.1:8080/saude                   # {"estado":"ok"}
+```
+
+Aplicação em `http://127.0.0.1:8080`.
+
+### Conta de staff
+
+```bash
+docker compose exec app php artisan bilhete:criar-staff
+```
+
+A palavra-passe é pedida interativamente e nunca aceite como argumento — um
+argumento ficaria no histórico da shell. Depois: painel em `/admin`, filas em
+`/horizon`.
+
+### Verificação
+
+```bash
+docker compose exec app composer check           # validate + pint + phpstan + pest
+docker compose run --rm --no-deps node npm run lint
+docker compose run --rm --no-deps node npm run type-check
+docker compose run --rm --no-deps node npm run format:check
+docker compose run --rm --no-deps node npm run build
+```
+
+`php artisan test` **não** é usado: imprime `passed` e sai com código 1 (KI-008).
+O comando é `composer test`.
+
+Antes de qualquer implantação:
+
+```bash
+docker compose exec app php artisan bilhete:verificar-producao
 ```
 
 O Node corre no container (Node 24 LTS), não no host. `node_modules` vive num
-volume próprio e por isso não aparece na tua árvore de ficheiros.
+volume próprio e por isso não aparece na árvore de ficheiros.
 
 O ambiente canónico é o Docker: resultados obtidos no host não valem como
 verificação do comportamento em PostgreSQL ou Redis. Ver

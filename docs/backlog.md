@@ -37,7 +37,7 @@ Prioridade: **P1** bloqueia o marco atual · **P2** necessário no marco seguint
 | B-047 | P2 | Verificar chamadas a terceiros em cada nova dependência de interface; já apanhado duas vezes (KI-018, KI-020) | contínuo |
 | ~~B-007~~ | — | ~~Health check de PostgreSQL e Redis~~ — concluído em C0.8 | C0.8 |
 | ~~B-008~~ | — | ~~CI no GitHub Actions~~ — concluída e **verde no GitHub** em C0.9 | C0.9 |
-| B-009 | P1 | `docs/architecture.md`, `docs/security.md`, `docs/product-scope.md` | C0.10 |
+| ~~B-009~~ | — | ~~`docs/architecture.md`, `docs/security.md`, `docs/product-scope.md`~~ — concluído em C0.10 | C0.10 |
 | ~~B-010~~ | — | ~~Configurar o remoto e a branch `main`~~ — feito em C0.9; código publicado | C0.9 |
 | B-011 | P2 | Subir o nível do PHPStan por passos, em ciclo próprio | após C0.2 |
 | B-015 | P2 | Reativar `checkModelProperties` do Larastan com modelos e migrations reais (KI-006) | Marco 1 |
