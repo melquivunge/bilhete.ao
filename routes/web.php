@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\VerificacaoDeSaudeController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -16,3 +17,9 @@ use Inertia\Inertia;
  * atacante se estava diante de produção ou de um ambiente de ensaio.
  */
 Route::get('/', fn () => Inertia::render('Inicio'))->name('inicio');
+
+/*
+ * Prontidão. Distinta do `/up` do Laravel, que continua a responder sem tocar em
+ * dependências e é o que o nginx usa como healthcheck — ver o controlador.
+ */
+Route::get('/saude', VerificacaoDeSaudeController::class)->name('saude');

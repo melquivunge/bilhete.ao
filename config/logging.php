@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use App\Logging\AplicarRedacao;
+use App\Logging\RedigirDadosSensiveis;
 use Monolog\Handler\NullHandler;
 use Monolog\Handler\StreamHandler;
 use Monolog\Handler\SyslogUdpHandler;
@@ -55,24 +57,34 @@ return [
     'channels' => [
 
         'stack' => [
+            'tap' => [AplicarRedacao::class],
             'driver' => 'stack',
             'channels' => explode(',', (string) env('LOG_STACK', 'single')),
             'ignore_exceptions' => false,
         ],
 
+        /*
+         * Redação aplicada em todos os canais: ver App\Logging\RedigirDadosSensiveis.
+         * Está em cada canal e não só no stack, porque um canal usado
+         * diretamente (ex.: Log::channel('single')) contornaria o stack.
+         */
         'single' => [
+            'tap' => [AplicarRedacao::class],
             'driver' => 'single',
             'path' => storage_path('logs/laravel.log'),
             'level' => env('LOG_LEVEL', 'debug'),
             'replace_placeholders' => true,
+            'processors' => [RedigirDadosSensiveis::class],
         ],
 
         'daily' => [
+            'tap' => [AplicarRedacao::class],
             'driver' => 'daily',
             'path' => storage_path('logs/laravel.log'),
             'level' => env('LOG_LEVEL', 'debug'),
             'days' => env('LOG_DAILY_DAYS', 14),
             'replace_placeholders' => true,
+            'processors' => [RedigirDadosSensiveis::class],
         ],
 
         'slack' => [
@@ -93,10 +105,11 @@ return [
                 'port' => env('PAPERTRAIL_PORT'),
                 'connectionString' => 'tls://'.env('PAPERTRAIL_URL').':'.env('PAPERTRAIL_PORT'),
             ],
-            'processors' => [PsrLogMessageProcessor::class],
+            'processors' => [RedigirDadosSensiveis::class, PsrLogMessageProcessor::class],
         ],
 
         'stderr' => [
+            'tap' => [AplicarRedacao::class],
             'driver' => 'monolog',
             'level' => env('LOG_LEVEL', 'debug'),
             'handler' => StreamHandler::class,
@@ -104,7 +117,7 @@ return [
                 'stream' => 'php://stderr',
             ],
             'formatter' => env('LOG_STDERR_FORMATTER'),
-            'processors' => [PsrLogMessageProcessor::class],
+            'processors' => [RedigirDadosSensiveis::class, PsrLogMessageProcessor::class],
         ],
 
         'syslog' => [
@@ -112,6 +125,7 @@ return [
             'level' => env('LOG_LEVEL', 'debug'),
             'facility' => env('LOG_SYSLOG_FACILITY', LOG_USER),
             'replace_placeholders' => true,
+            'processors' => [RedigirDadosSensiveis::class],
         ],
 
         'errorlog' => [

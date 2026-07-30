@@ -145,6 +145,33 @@ do container define um limite compatível em C0.3.
 
 ---
 
+## KI-021 — Redação de logs configurada mas sem efeito no canal predefinido
+
+**Observado em.** C0.8, 2026-07-30, ao inspecionar `storage/logs/laravel.log`.
+
+**Sintoma.** Com o processador de redação declarado em `single`, `daily` e
+`stderr`, um `Log::info('teste', ['password' => '...'])` continuava a escrever a
+palavra-passe **em claro** no ficheiro.
+
+**Causa.** O canal predefinido é o `stack`, e o `stack` agrega apenas os
+*handlers* dos sub-canais. Os `processors` declarados nos sub-canais nunca chegam
+a ser aplicados quando o registo passa pelo stack.
+
+**Porque o meu teste não apanhou.** O teste verificava que a classe constava de
+`config('logging.channels.X.processors')`. Passava — e a redação não acontecia.
+**Configuração presente não é comportamento verificado.** É a mesma falha do
+teste do CSP do Horizon (KI-019), no mesmo marco.
+
+**Correção.** A redação passa a ser aplicada por *tap*
+(`App\Logging\AplicarRedacao`), que o LogManager aplica a qualquer canal
+resolvido, incluindo o stack. O teste passa a asserir o que sai do logger, e o
+helper de teste aplica o mesmo tap — senão estaria a medir um logger que não
+existe na aplicação.
+
+**Estado.** Resolvido, verificado no ficheiro de log real.
+
+---
+
 ## KI-019 — Painel do Horizon partido pela política CSP do site
 
 **Observado em.** C0.7, 2026-07-30, em verificação no browser.

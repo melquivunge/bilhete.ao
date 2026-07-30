@@ -25,23 +25,24 @@ Prioridade: **P1** bloqueia o marco atual · **P2** necessário no marco seguint
 | ~~B-042~~ | — | ~~A marca de staff nunca pode entrar em `#[Fillable]`~~ — cumprido em C0.6, com teste que tenta promover-se pelo registo público | C0.6 |
 | B-045 | P3 | Reavaliar `unsafe-eval` no CSP do painel; depende de o Filament expor a build CSP-safe do Alpine | Marco 7 |
 | B-046 | P2 | Testar que um Resource real do painel também nega acesso a não-staff, e o endpoint Livewire | Marco 1 |
-| B-043 | P2 | Auditoria de eventos de autenticação (login falhado, redefinição), exigida pela secção 10 | C0.8 |
-| B-044 | P2 | Estender a verificação de arranque do C0.8 a `APP_ENV=local` fora de desenvolvimento, que relaxaria o CSP | C0.8 |
+| ~~B-043~~ | — | ~~Auditoria de eventos de autenticação~~ — concluído em C0.8 | C0.8 |
+| ~~B-044~~ | — | ~~Verificação de `APP_ENV=local` fora de desenvolvimento~~ — feito em C0.8 por comando de implantação | C0.8 |
 | B-039 | P2 | Verificação de email, adiada para o Marco 3 onde passa a ter consequência no checkout | Marco 3 |
 | B-027 | P2 | Retirar a prop `ambiente` da rota raiz ao substituir o shell pela home real | Marco 1 |
 | ~~B-028~~ | — | ~~`healthcheck` no serviço `node`~~ — feito em C0.5, depois de a sua ausência esconder um serviço morto (KI-013) | C0.5 |
 | ~~B-004~~ | — | ~~Autenticação de clientes com Fortify e páginas Inertia próprias~~ — concluído em C0.5 | C0.5 |
 | ~~B-005~~ | — | ~~Painel Filament em `/admin` com acesso negado por omissão~~ — concluído em C0.6 | C0.6 |
 | ~~B-006~~ | — | ~~Redis, filas, Horizon com gate e scheduler~~ — concluído em C0.7 | C0.7 |
+| B-048 | P2 | Persistir a auditoria de autenticação em `audit_logs`, e não só em ficheiro de log | Marco 6 |
 | B-047 | P2 | Verificar chamadas a terceiros em cada nova dependência de interface; já apanhado duas vezes (KI-018, KI-020) | contínuo |
-| B-007 | P1 | Health check de PostgreSQL e Redis sem exposição de topologia | C0.8 |
+| ~~B-007~~ | — | ~~Health check de PostgreSQL e Redis~~ — concluído em C0.8 | C0.8 |
 | B-008 | P1 | CI no GitHub Actions replicando as verificações locais | C0.9 |
 | B-009 | P1 | `docs/architecture.md`, `docs/security.md`, `docs/product-scope.md` | C0.10 |
 | B-010 | P2 | Configurar o remoto `git@github.com:melquivunge/bilhete.ao.git` e a branch `main` | antes de C0.9 |
 | B-011 | P2 | Subir o nível do PHPStan por passos, em ciclo próprio | após C0.2 |
 | B-015 | P2 | Reativar `checkModelProperties` do Larastan com modelos e migrations reais (KI-006) | Marco 1 |
 | ~~B-016~~ | — | ~~Substituir `resources/views/welcome.blade.php`~~ — removido em C0.4; a raiz é agora uma página Inertia | C0.4 |
-| B-012 | P2 | Redação de dados sensíveis nos logs, conforme secção 10 do `agent.md` | C0.8 |
+| ~~B-012~~ | — | ~~Redação de dados sensíveis nos logs~~ — concluído em C0.8, por tap (KI-021) | C0.8 |
 | ~~B-013~~ | — | ~~ADR-005 — Inertia e Vue no frontend~~ — escrito em C0.4 | C0.4 |
 | ~~B-014~~ | — | ~~Confirmar as tags exatas das imagens `php` e `node`~~ — `php:8.4.23-fpm-bookworm` fixado em C0.3; tag do Node fica com o serviço Node, em C0.4 | C0.3 |
 | B-017 | P2 | Stage de produção no `Dockerfile` e decisão própria: sem bind mount, sem dependências de dev, sem ferramentas de build na camada final | Marco 7 |

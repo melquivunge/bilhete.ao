@@ -4,6 +4,70 @@ Registo cronológico dos ciclos executados. Entrada mais recente no topo.
 
 ---
 
+## 2026-07-30 — C0.8 · Health check, observabilidade e guardas de ambiente
+
+**Marco.** 0 — Fundação.
+
+**Resultado.** Concluído.
+
+**Implementado.**
+- `/saude` verifica PostgreSQL e Redis. **Distinto do `/up`**, que continua a
+  responder sem tocar em dependências e é o healthcheck do nginx: se dependesse da
+  base de dados, uma falha do PostgreSQL derrubaria também o container web, que
+  continua capaz de servir páginas de erro. É a distinção entre *liveness* e
+  *readiness*.
+- A resposta não diz **qual** dependência falhou, nem devolve mensagens de
+  exceção. Qualquer `Throwable` é apanhado: sem isso, com `APP_DEBUG` ligado, o
+  endpoint feito para sistemas externos devolveria host, credencial parcial e
+  stack trace.
+- Redação de dados sensíveis nos logs (secção 10), por tap.
+- Auditoria dos eventos de autenticação: entrada, falha, bloqueio, saída, registo
+  e redefinição. Regista o identificador tentado, nunca a credencial.
+- A aplicação recusa arrancar com `APP_DEBUG=true` em produção.
+- Comando `bilhete:verificar-producao` para o caso que nenhuma verificação em
+  runtime apanha: **produção a correr com `APP_ENV=local`**, em que a aplicação se
+  julga em desenvolvimento e relaxa CSP e cookie de sessão. Nada dentro dela sabe
+  que está errada, porque a única fonte de verdade sobre o ambiente é a variável
+  errada.
+
+**Testes e verificações — dentro dos containers.**
+
+| Verificação | Resultado |
+| --- | --- |
+| `composer test` | **126 testes, 425 asserções**, saída 0 |
+| `composer check` | saída 0 |
+| `GET /saude` | 200 `{"estado":"ok"}` |
+| `GET /up` com base de dados em baixo | continua 200 |
+| `GET /saude` com dependência em baixo | 503, sem revelar qual nem detalhes |
+| `bilhete:verificar-producao` em `local` | falha, apontando APP_DEBUG, APP_ENV e SESSION_SECURE_COOKIE |
+| Redação | verificada em `storage/logs/laravel.log` real |
+
+**Um defeito meu, e é o mesmo erro do ciclo anterior.**
+
+A redação estava declarada em `single`, `daily` e `stderr`, e o meu teste
+confirmava que a classe constava dessa configuração. **Passava — e a redação não
+acontecia.** O canal predefinido é o `stack`, que agrega apenas os *handlers* dos
+sub-canais; os processadores ficam pelo caminho. Descobri ao abrir o ficheiro de
+log e ver a palavra-passe em claro (KI-021).
+
+É exatamente a falha do C0.7, onde um teste confirmava a presença do cabeçalho CSP
+em `/horizon` enquanto o painel renderizava vazio. **Configuração presente não é
+comportamento verificado.** Os dois testes foram reescritos para medir efeito: um
+lê o que sai do logger, o outro assere a política correta e não só a sua
+existência. E o helper de teste passou a aplicar o mesmo tap da aplicação — senão
+mediria um logger que não existe em produção.
+
+**Riscos restantes.**
+- A auditoria vai para ficheiro de log, não para `audit_logs` em base de dados
+  (B-048, Marco 6). Suficiente para investigar, insuficiente para relatórios.
+- `bilhete:verificar-producao` é um portão de implantação: só protege se for
+  executado. Fica documentado no C0.10.
+
+**Próxima tarefa recomendada.** C0.9 — CI no GitHub Actions, construindo a mesma
+imagem Docker. Depende do remoto Git (B-010) para ser validada no GitHub.
+
+---
+
 ## 2026-07-30 — C0.7 · Redis, filas, Horizon e scheduler
 
 **Marco.** 0 — Fundação.

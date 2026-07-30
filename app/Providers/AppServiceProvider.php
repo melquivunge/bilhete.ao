@@ -4,8 +4,17 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Listeners\RegistarEventosDeAutenticacao;
+use Illuminate\Auth\Events\Failed;
+use Illuminate\Auth\Events\Lockout;
+use Illuminate\Auth\Events\Login;
+use Illuminate\Auth\Events\Logout;
+use Illuminate\Auth\Events\PasswordReset;
+use Illuminate\Auth\Events\Registered;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
+use RuntimeException;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -26,5 +35,40 @@ class AppServiceProvider extends ServiceProvider
          * o Marco 1 acrescentar colunas de privilégio por empresa e cinema.
          */
         Model::preventSilentlyDiscardingAttributes(! $this->app->isProduction());
+
+        $this->registarAuditoriaDeAutenticacao();
+        $this->recusarConfiguracaoInsegura();
+    }
+
+    /**
+     * Auditoria dos eventos de autenticação (agent.md, secção 10).
+     */
+    private function registarAuditoriaDeAutenticacao(): void
+    {
+        Event::listen(Login::class, [RegistarEventosDeAutenticacao::class, 'autenticou']);
+        Event::listen(Failed::class, [RegistarEventosDeAutenticacao::class, 'falhou']);
+        Event::listen(Lockout::class, [RegistarEventosDeAutenticacao::class, 'bloqueou']);
+        Event::listen(Logout::class, [RegistarEventosDeAutenticacao::class, 'saiu']);
+        Event::listen(Registered::class, [RegistarEventosDeAutenticacao::class, 'registou']);
+        Event::listen(PasswordReset::class, [RegistarEventosDeAutenticacao::class, 'redefiniu']);
+    }
+
+    /**
+     * Recusa arrancar em produção com depuração ligada.
+     *
+     * `APP_DEBUG=true` em produção transforma qualquer exceção não apanhada numa
+     * página com host, credencial parcial e stack trace. É o modo de falha mais
+     * banal e mais caro que existe, e não deve depender de alguém se lembrar.
+     *
+     * Falha alto no arranque, e não silenciosamente à primeira exceção.
+     */
+    private function recusarConfiguracaoInsegura(): void
+    {
+        if ($this->app->isProduction() && config('app.debug') === true) {
+            throw new RuntimeException(
+                'APP_DEBUG está ligado em produção. A aplicação recusa arrancar: '
+                .'uma exceção não apanhada exporia host, credenciais parciais e stack trace.'
+            );
+        }
     }
 }
