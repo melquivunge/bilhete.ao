@@ -27,6 +27,4 @@ use Tests\TestCase;
  * os assets são gerados e referenciados é o job de frontend e a verificação em
  * browser.
  */
-pest()->extend(TestCase::class)
-    ->beforeEach(fn () => $this->withoutVite())
-    ->in('Feature');
+pest()->extend(TestCase::class)->in('Feature');
