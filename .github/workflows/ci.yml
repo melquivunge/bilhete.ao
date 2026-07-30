@@ -57,7 +57,12 @@ jobs:
       # sozinha. Assim, o que corre na CI é literalmente a imagem que corre em
       # desenvolvimento.
       - name: Construir a imagem da aplicação
-        run: docker build --target development --tag bilhete-ci .
+        # UID/GID do runner: o utilizador do container tem de coincidir com o dono
+        # dos ficheiros do checkout. Sem isto o Git recusa o diretório por
+        # "dubious ownership" e o Composer não consegue escrever em vendor/.
+        run: |
+          docker build --target development --tag bilhete-ci \
+            --build-arg UID=$(id -u) --build-arg GID=$(id -g) .
 
       - name: Confirmar a versão de PHP e as extensões
         run: |
