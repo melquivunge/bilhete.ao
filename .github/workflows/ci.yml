@@ -1,0 +1,169 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Cancela execuções anteriores do mesmo ramo: só interessa o estado atual.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: PHP — formato, análise estática e testes
+    runs-on: ubuntu-latest
+
+    # As mesmas versões que o docker-compose.yml usa em desenvolvimento.
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: bilhete
+          POSTGRES_USER: bilhete
+          POSTGRES_PASSWORD: ci-sem-valor-fora-deste-runner
+        options: >-
+          --health-cmd "pg_isready -U bilhete -d bilhete"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:8-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+        ports:
+          - 6379:6379
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # A imagem é construída a partir do Dockerfile do projeto, e não com uma
+      # action que instala PHP à parte.
+      #
+      # A razão está em KI-002: já convivemos com uma divergência conhecida entre
+      # o PHP do host (8.5) e o do container (8.4.23). Instalar PHP aqui com
+      # setup-php criaria uma terceira versão, que ninguém controla e que mudaria
+      # sozinha. Assim, o que corre na CI é literalmente a imagem que corre em
+      # desenvolvimento.
+      - name: Construir a imagem da aplicação
+        run: docker build --target development --tag bilhete-ci .
+
+      - name: Confirmar a versão de PHP e as extensões
+        run: |
+          docker run --rm bilhete-ci php -v | head -1
+          for ext in bcmath intl pcntl pdo_pgsql posix redis zip; do
+            docker run --rm bilhete-ci php -m | grep -qx "$ext" || { echo "extensão em falta: $ext"; exit 1; }
+          done
+
+      - name: Instalar dependências PHP
+        run: |
+          docker run --rm -v "$PWD":/var/www/html -w /var/www/html bilhete-ci \
+            composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Preparar o ambiente
+        run: |
+          cp .env.example .env
+          docker run --rm -v "$PWD":/var/www/html -w /var/www/html bilhete-ci \
+            php artisan key:generate
+
+      - name: Criar a base de dados de testes
+        env:
+          PGPASSWORD: ci-sem-valor-fora-deste-runner
+        run: psql -h 127.0.0.1 -U bilhete -d bilhete -c 'CREATE DATABASE bilhete_testing;'
+
+      - name: Validar o composer.json
+        run: docker run --rm -v "$PWD":/var/www/html -w /var/www/html bilhete-ci composer validate --strict
+
+      - name: Formato (Pint)
+        run: docker run --rm -v "$PWD":/var/www/html -w /var/www/html bilhete-ci ./vendor/bin/pint --test
+
+      - name: Análise estática (PHPStan)
+        run: docker run --rm -v "$PWD":/var/www/html -w /var/www/html bilhete-ci ./vendor/bin/phpstan analyse --no-progress --memory-limit=1G
+
+      - name: Migrations
+        run: |
+          docker run --rm --network host -v "$PWD":/var/www/html -w /var/www/html \
+            -e DB_HOST=127.0.0.1 -e DB_PASSWORD=ci-sem-valor-fora-deste-runner \
+            bilhete-ci php artisan migrate --force
+
+      # `php artisan test` não é usado: imprime "passed" e sai com código 1
+      # (KI-008). Um pipeline com esse comando falharia sempre, com o ecrã a
+      # dizer que os testes passaram.
+      - name: Testes (Pest)
+        run: |
+          docker run --rm --network host -v "$PWD":/var/www/html -w /var/www/html \
+            -e DB_HOST=127.0.0.1 -e DB_PASSWORD=ci-sem-valor-fora-deste-runner \
+            -e REDIS_HOST=127.0.0.1 \
+            bilhete-ci ./vendor/bin/pest
+
+  frontend:
+    name: Frontend — lint, tipos, formato e build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Node 24, a mesma versão do serviço `node` do Compose. Ver ADR-005.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run type-check
+      - run: npm run format:check
+      - run: npm run build
+
+  seguranca:
+    name: Segurança — segredos e configuração
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Impede que artefactos de runtime voltem ao histórico, como aconteceu em
+      # KI-009, quando cache de views compiladas foi commitada por um padrão de
+      # exclusão mal ancorado.
+      - name: Nenhum artefacto de runtime versionado
+        run: |
+          if git ls-files storage/ | grep -v '.gitignore$' | grep -q .; then
+            echo "Ficheiros de storage/ versionados:"
+            git ls-files storage/ | grep -v '.gitignore$'
+            exit 1
+          fi
+
+      - name: Nenhum .env versionado
+        run: |
+          if git ls-files | grep -qx '.env'; then
+            echo ".env está versionado"
+            exit 1
+          fi
+
+      # As credenciais do .env.example são deliberadamente vazias: um valor por
+      # omissão funcional seria herdado por qualquer ambiente que copiasse o
+      # ficheiro. Ver o comentário no próprio .env.example.
+      - name: Nenhuma credencial preenchida no .env.example
+        run: |
+          if grep -qE '^(DB_PASSWORD|REDIS_PASSWORD|AWS_SECRET_ACCESS_KEY|APP_KEY)=.+' .env.example; then
+            echo "O .env.example tem uma credencial preenchida:"
+            grep -E '^(DB_PASSWORD|REDIS_PASSWORD|AWS_SECRET_ACCESS_KEY|APP_KEY)=.+' .env.example
+            exit 1
+          fi
+
+      - name: Compose válido
+        env:
+          DB_PASSWORD: verificacao
+          REDIS_PASSWORD: verificacao
+        run: docker compose config --quiet
